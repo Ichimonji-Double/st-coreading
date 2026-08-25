@@ -5,6 +5,7 @@ import { openBook, setReaderStatus, refreshCurrentChunkMeta, refreshContext, ref
 import { summarizeChunk } from './context/summarizer.js';
 import { readChunkUnified } from './context/unified.js';
 import { generateNotesForChunk, getNotesForBook, askCharacterAboutParagraph, saveUserNote, deleteNote, updateNoteText } from './notes/generator.js';
+import { exportNotesAs } from './notes/exporter.js';
 
 const EXT_ID = 'st-coreading';
 
@@ -317,6 +318,8 @@ async function renderNotesPanel(bookId, charId) {
     // Group by chapter
     const chapters = await db.byIndex('chapters', 'bookId', bookId);
     const chapterMap = new Map(chapters.map(c => [c.id, c]));
+    const book = await db.get('books', bookId);
+    const charName = getCharName();
     const byChapter = new Map();
     for (const n of notes) {
         if (!byChapter.has(n.chapterId)) byChapter.set(n.chapterId, []);
@@ -326,7 +329,15 @@ async function renderNotesPanel(bookId, charId) {
         (a, b) => (chapterMap.get(a)?.idx ?? 0) - (chapterMap.get(b)?.idx ?? 0)
     );
 
-    host.innerHTML = sortedChapterIds.map(cid => {
+    const exportBar = `
+        <div class="coread-export-bar">
+            <span class="coread-export-label">${t('coread.export.title')}</span>
+            <button class="coread-btn coread-export-md">${t('coread.export.md')}</button>
+            <button class="coread-btn coread-export-json">${t('coread.export.json')}</button>
+        </div>
+    `;
+
+    host.innerHTML = exportBar + sortedChapterIds.map(cid => {
         const chapter = chapterMap.get(cid);
         const items = byChapter.get(cid).map(n => {
             const chunkIdxDisplay = chapter?.chunkIds?.indexOf(n.chunkId);
@@ -354,6 +365,14 @@ async function renderNotesPanel(bookId, charId) {
             </div>
         `;
     }).join('');
+
+    // Wire export buttons
+    host.querySelector('.coread-export-md')?.addEventListener('click', () => {
+        exportNotesAs('md', { book, charName, charId, notes, chapters });
+    });
+    host.querySelector('.coread-export-json')?.addEventListener('click', () => {
+        exportNotesAs('json', { book, charName, charId, notes, chapters });
+    });
 
     // Wire click → jump to source (skip when clicking on the inline controls)
     host.querySelectorAll('.coread-note-item').forEach(item => {

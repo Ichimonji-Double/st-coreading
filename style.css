@@ -452,6 +452,22 @@
     white-space: pre-wrap;
 }
 
+/* Notes tab: export bar */
+.coread-export-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0 10px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
+}
+
+.coread-export-label {
+    font-size: 11px;
+    opacity: 0.6;
+    margin-right: auto;
+}
+
 /* Notes tab list */
 .coread-notes-group {
     margin-bottom: 18px;
