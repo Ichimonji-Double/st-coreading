@@ -1,8 +1,9 @@
 import { db, newId } from './storage/db.js';
 import { parseFile } from './reader/parser.js';
 import { buildChunkRecords } from './reader/chunker.js';
-import { openBook, setReaderStatus, refreshCurrentChunkMeta, refreshContext } from './reader/viewer.js';
+import { openBook, setReaderStatus, refreshCurrentChunkMeta, refreshContext, refreshParagraphNotes, getCurrentChunkId } from './reader/viewer.js';
 import { summarizeChunk } from './context/summarizer.js';
+import { generateNotesForChunk, getNotesForBook } from './notes/generator.js';
 
 const EXT_ID = 'st-coreading';
 
@@ -205,6 +206,7 @@ async function openBookInReader(bookId) {
             }
         },
     });
+    renderNotesPanel(bookId, getCharId());
 }
 
 function getCharId() {
@@ -217,19 +219,83 @@ function getCharId() {
 async function runChunkSummary(book, chunk) {
     if (chunk.summary) return;
     const chapter = await db.get('chapters', chunk.chapterId);
+    const charId = getCharId();
     setReaderStatus(t('coread.status.reading'));
     try {
-        await summarizeChunk({
+        const { rollingSummary } = await summarizeChunk({
             bookId: book.id,
-            charId: getCharId(),
+            charId,
             chunk,
             chapter,
             book,
         });
-    } finally {
         refreshCurrentChunkMeta();
         refreshContext();
+
+        if (settings.autoNote) {
+            setReaderStatus(t('coread.status.thinking'));
+            try {
+                const charName = getCharName();
+                const notes = await generateNotesForChunk({
+                    book, chapter, chunk, charId, charName, rollingSummary,
+                });
+                console.log('[coread] notes generated:', notes.length);
+                // If we're still on this chunk (or came back to it), reveal
+                if (getCurrentChunkId() === chunk.id || notes.length) {
+                    refreshParagraphNotes();
+                    renderNotesPanel(book.id, charId);
+                }
+            } catch (e) {
+                console.error('[coread] note generation failed', e);
+            }
+        }
+    } finally {
+        refreshCurrentChunkMeta();
     }
+}
+
+function getCharName() {
+    const ctx = globalThis.SillyTavern?.getContext?.();
+    if (!ctx) return 'Character';
+    const idx = ctx.characterId;
+    return ctx.characters?.[idx]?.name || ctx.name2 || 'Character';
+}
+
+async function renderNotesPanel(bookId, charId) {
+    const host = document.querySelector('#coread-drawer [data-panel="notes"]');
+    if (!host) return;
+    const notes = await getNotesForBook(bookId, charId);
+    if (!notes.length) {
+        host.innerHTML = `<div class="coread-empty">${t('coread.empty.notes')}</div>`;
+        return;
+    }
+    // Group by chapter
+    const chapters = await db.byIndex('chapters', 'bookId', bookId);
+    const chapterMap = new Map(chapters.map(c => [c.id, c]));
+    const byChapter = new Map();
+    for (const n of notes) {
+        if (!byChapter.has(n.chapterId)) byChapter.set(n.chapterId, []);
+        byChapter.get(n.chapterId).push(n);
+    }
+    const sortedChapterIds = [...byChapter.keys()].sort(
+        (a, b) => (chapterMap.get(a)?.idx ?? 0) - (chapterMap.get(b)?.idx ?? 0)
+    );
+
+    host.innerHTML = sortedChapterIds.map(cid => {
+        const chapter = chapterMap.get(cid);
+        const items = byChapter.get(cid).map(n => `
+            <div class="coread-note-item">
+                <div class="coread-note-author">${escapeHtml(n.charName || 'Character')}</div>
+                <div class="coread-note-text">${escapeHtml(n.text)}</div>
+            </div>
+        `).join('');
+        return `
+            <div class="coread-notes-group">
+                <div class="coread-notes-chapter">${escapeHtml(chapter?.title || 'Unknown chapter')}</div>
+                ${items}
+            </div>
+        `;
+    }).join('');
 }
 
 async function handleImport() {

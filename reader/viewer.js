@@ -2,6 +2,7 @@
 // Emits events via the callback bag passed to mount().
 
 import { db } from '../storage/db.js';
+import { getNotesForChunk } from '../notes/generator.js';
 
 let state = {
     bookId: null,
@@ -103,6 +104,9 @@ function render() {
         body.appendChild(para);
     });
 
+    // Overlay any existing notes as inline cards after their paragraphs
+    renderParagraphNotes(chunk).catch(e => console.warn('[coread] notes render', e));
+
     wrap.querySelector('[data-act="prev"]').addEventListener('click', () => turn(-1));
     wrap.querySelector('[data-act="next"]').addEventListener('click', () => turn(1));
 
@@ -139,6 +143,47 @@ function escapeHtml(s) {
 
 export function refreshContext() {
     renderContext();
+}
+
+async function renderParagraphNotes(chunk) {
+    const charId = callbacks.getCharId?.() || 'default';
+    const notes = await getNotesForChunk(state.bookId, charId, chunk.id);
+    if (!notes.length) return;
+    const notesByPara = new Map();
+    for (const n of notes) {
+        if (!notesByPara.has(n.paragraphIdx)) notesByPara.set(n.paragraphIdx, []);
+        notesByPara.get(n.paragraphIdx).push(n);
+    }
+    const paras = document.querySelectorAll('#coread-drawer .coread-paragraph');
+    for (const p of paras) {
+        const idx = Number(p.dataset.pidx);
+        const noteList = notesByPara.get(idx);
+        if (!noteList) continue;
+        p.classList.add('has-note');
+        for (const n of noteList) {
+            const card = el(`
+                <div class="coread-note-card ${n.author === 'char' ? 'note-char' : 'note-user'}">
+                    <div class="coread-note-author">${escapeHtml(n.charName || (n.author === 'user' ? 'You' : 'Character'))}</div>
+                    <div class="coread-note-text"></div>
+                </div>
+            `);
+            card.querySelector('.coread-note-text').textContent = n.text;
+            p.insertAdjacentElement('afterend', card);
+        }
+    }
+}
+
+export function refreshParagraphNotes() {
+    const chunk = state.chunks[state.currentChunkIdx];
+    if (!chunk) return;
+    // Remove existing note cards first
+    document.querySelectorAll('#coread-drawer .coread-note-card').forEach(c => c.remove());
+    document.querySelectorAll('#coread-drawer .coread-paragraph.has-note').forEach(p => p.classList.remove('has-note'));
+    renderParagraphNotes(chunk);
+}
+
+export function getCurrentChunkId() {
+    return state.chunks[state.currentChunkIdx]?.id;
 }
 
 function turn(delta) {
