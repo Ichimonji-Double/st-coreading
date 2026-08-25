@@ -1,6 +1,6 @@
 {
-  "coread.title": "AI 共读",
-  "coread.toggle": "打开共读面板",
+  "coread.title": "共读时光",
+  "coread.toggle": "打开共读时光",
   "coread.library": "书库",
   "coread.import": "导入书籍",
   "coread.import.hint": "支持 EPUB / TXT 格式，文件保存在本地浏览器",

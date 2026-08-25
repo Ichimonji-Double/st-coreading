@@ -1,6 +1,6 @@
 {
-  "coread.title": "AI Co-Reading",
-  "coread.toggle": "Open co-reading panel",
+  "coread.title": "Co-Reading Time",
+  "coread.toggle": "Open Co-Reading Time",
   "coread.library": "Library",
   "coread.import": "Import book",
   "coread.import.hint": "EPUB / TXT supported. Books stay in your local browser.",

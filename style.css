@@ -10,45 +10,85 @@
 
 #coread-drawer {
     position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 420px;
+    /* left/top/width/height are set via JS (applyDrawerBounds) */
     min-width: 320px;
-    max-width: 70vw;
+    min-height: 260px;
     background: var(--SmartThemeBlurTintColor, #1a1a1a);
     color: var(--SmartThemeBodyColor, #e0e0e0);
-    border-left: 1px solid var(--SmartThemeBorderColor, #333);
-    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     z-index: 3000;
     display: flex;
     flex-direction: column;
-    transform: translateX(100%);
-    transition: transform 200ms ease-out;
     font-size: 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease-out;
+    overflow: hidden;
 }
 
 #coread-drawer.open {
-    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
 }
 
-#coread-drawer .coread-resize {
-    position: absolute;
-    left: -3px;
-    top: 0;
-    bottom: 0;
-    width: 6px;
-    cursor: ew-resize;
-    z-index: 1;
+#coread-drawer.coread-dragging,
+#coread-drawer.coread-resizing {
+    user-select: none;
+    transition: none;
 }
+
+/* Resize handles — 8 around the perimeter */
+.coread-resize-handle {
+    position: absolute;
+    z-index: 2;
+}
+.coread-resize-n  { top: -3px; left: 8px; right: 8px; height: 6px; cursor: ns-resize; }
+.coread-resize-s  { bottom: -3px; left: 8px; right: 8px; height: 6px; cursor: ns-resize; }
+.coread-resize-w  { left: -3px; top: 8px; bottom: 8px; width: 6px; cursor: ew-resize; }
+.coread-resize-e  { right: -3px; top: 8px; bottom: 8px; width: 6px; cursor: ew-resize; }
+.coread-resize-ne { top: -4px; right: -4px; width: 12px; height: 12px; cursor: nesw-resize; }
+.coread-resize-nw { top: -4px; left: -4px; width: 12px; height: 12px; cursor: nwse-resize; }
+.coread-resize-se { bottom: -4px; right: -4px; width: 12px; height: 12px; cursor: nwse-resize; }
+.coread-resize-sw { bottom: -4px; left: -4px; width: 12px; height: 12px; cursor: nesw-resize; }
 
 #coread-drawer header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 6px;
     padding: 10px 14px;
     border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
     font-weight: 600;
+}
+
+#coread-drawer header.coread-drag-handle {
+    cursor: move;
+    user-select: none;
+}
+
+#coread-drawer header > span {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.coread-dock-btn {
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    opacity: 0.6;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+.coread-dock-btn:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.06);
 }
 
 #coread-drawer header .coread-close {

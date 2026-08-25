@@ -14,6 +14,9 @@ const DEFAULTS = {
     autoNote: true,
     noteDensity: 'medium', // 'sparse' | 'medium' | 'dense'
     drawerWidth: 420,
+    drawerHeight: null,   // null = full viewport height
+    drawerLeft: null,     // null = docked to right edge
+    drawerTop: null,      // null = top
 };
 
 let settings = { ...DEFAULTS };
@@ -49,10 +52,8 @@ function saveSettings() {
 function buildDrawer() {
     const drawer = document.createElement('div');
     drawer.id = 'coread-drawer';
-    drawer.style.width = settings.drawerWidth + 'px';
     drawer.innerHTML = `
-        <div class="coread-resize"></div>
-        <header>
+        <header class="coread-drag-handle">
             <span>${t('coread.title')}</span>
             <button class="coread-close" title="${t('coread.action.close')}">✕</button>
         </header>
@@ -137,31 +138,140 @@ function buildDrawer() {
 
     drawer.querySelector('#coread-import-btn').addEventListener('click', () => handleImport());
 
+    // Resize handles: W (left edge), E (right edge), S (bottom edge), SE (corner)
+    const handles = ['w', 'e', 's', 'se', 'sw', 'n', 'ne', 'nw'];
+    for (const dir of handles) {
+        const h = document.createElement('div');
+        h.className = `coread-resize-handle coread-resize-${dir}`;
+        h.dataset.dir = dir;
+        drawer.appendChild(h);
+    }
+
+    applyDrawerBounds(drawer);
+    initDrag(drawer);
     initResize(drawer);
+    initDockButton(drawer);
+    window.addEventListener('resize', () => applyDrawerBounds(drawer));
+
     renderBookList();
     return drawer;
 }
 
-function initResize(drawer) {
-    const handle = drawer.querySelector('.coread-resize');
-    let startX = 0, startW = 0, dragging = false;
-    handle.addEventListener('mousedown', (e) => {
-        dragging = true;
-        startX = e.clientX;
-        startW = drawer.getBoundingClientRect().width;
+const MIN_W = 320;
+const MIN_H = 260;
+
+function applyDrawerBounds(drawer) {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let w = settings.drawerWidth || 420;
+    let h = settings.drawerHeight ?? vh;
+    let left = settings.drawerLeft ?? (vw - w);
+    let top = settings.drawerTop ?? 0;
+    w = Math.max(MIN_W, Math.min(vw, w));
+    h = Math.max(MIN_H, Math.min(vh, h));
+    left = Math.max(0, Math.min(vw - w, left));
+    top = Math.max(0, Math.min(vh - h, top));
+    drawer.style.width = w + 'px';
+    drawer.style.height = h + 'px';
+    drawer.style.left = left + 'px';
+    drawer.style.top = top + 'px';
+}
+
+function initDrag(drawer) {
+    const header = drawer.querySelector('header.coread-drag-handle');
+    let start = null;
+    header.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.coread-close')) return;
+        const r = drawer.getBoundingClientRect();
+        start = { x: e.clientX, y: e.clientY, left: r.left, top: r.top, w: r.width, h: r.height };
+        drawer.classList.add('coread-dragging');
         e.preventDefault();
     });
     document.addEventListener('mousemove', (e) => {
-        if (!dragging) return;
-        const w = Math.max(320, Math.min(window.innerWidth * 0.7, startW + (startX - e.clientX)));
-        drawer.style.width = w + 'px';
+        if (!start) return;
+        const dx = e.clientX - start.x;
+        const dy = e.clientY - start.y;
+        const newLeft = Math.max(0, Math.min(window.innerWidth - start.w, start.left + dx));
+        const newTop = Math.max(0, Math.min(window.innerHeight - start.h, start.top + dy));
+        drawer.style.left = newLeft + 'px';
+        drawer.style.top = newTop + 'px';
     });
     document.addEventListener('mouseup', () => {
-        if (!dragging) return;
-        dragging = false;
-        settings.drawerWidth = parseInt(drawer.style.width, 10);
+        if (!start) return;
+        drawer.classList.remove('coread-dragging');
+        settings.drawerLeft = parseInt(drawer.style.left, 10);
+        settings.drawerTop = parseInt(drawer.style.top, 10);
+        start = null;
         saveSettings();
     });
+}
+
+function initResize(drawer) {
+    let start = null;
+    drawer.querySelectorAll('.coread-resize-handle').forEach(handle => {
+        handle.addEventListener('mousedown', (e) => {
+            const r = drawer.getBoundingClientRect();
+            start = {
+                x: e.clientX, y: e.clientY,
+                left: r.left, top: r.top, w: r.width, h: r.height,
+                dir: handle.dataset.dir,
+            };
+            drawer.classList.add('coread-resizing');
+            e.preventDefault();
+        });
+    });
+    document.addEventListener('mousemove', (e) => {
+        if (!start) return;
+        const dx = e.clientX - start.x;
+        const dy = e.clientY - start.y;
+        let { left, top, w, h, dir } = start;
+        if (dir.includes('e')) w = Math.max(MIN_W, Math.min(window.innerWidth - left, start.w + dx));
+        if (dir.includes('w')) {
+            const newW = Math.max(MIN_W, start.w - dx);
+            const newLeft = Math.min(start.left + (start.w - newW), start.left + start.w - MIN_W);
+            w = newW; left = Math.max(0, newLeft);
+        }
+        if (dir.includes('s')) h = Math.max(MIN_H, Math.min(window.innerHeight - top, start.h + dy));
+        if (dir.includes('n')) {
+            const newH = Math.max(MIN_H, start.h - dy);
+            const newTop = Math.min(start.top + (start.h - newH), start.top + start.h - MIN_H);
+            h = newH; top = Math.max(0, newTop);
+        }
+        drawer.style.width = w + 'px';
+        drawer.style.height = h + 'px';
+        drawer.style.left = left + 'px';
+        drawer.style.top = top + 'px';
+    });
+    document.addEventListener('mouseup', () => {
+        if (!start) return;
+        drawer.classList.remove('coread-resizing');
+        settings.drawerWidth = parseInt(drawer.style.width, 10);
+        settings.drawerHeight = parseInt(drawer.style.height, 10);
+        settings.drawerLeft = parseInt(drawer.style.left, 10);
+        settings.drawerTop = parseInt(drawer.style.top, 10);
+        start = null;
+        saveSettings();
+    });
+}
+
+function initDockButton(drawer) {
+    // Add a small "dock to right" button in the header (reset position/size)
+    const header = drawer.querySelector('header.coread-drag-handle');
+    const dockBtn = document.createElement('button');
+    dockBtn.className = 'coread-dock-btn';
+    dockBtn.title = 'Dock to right';
+    dockBtn.textContent = '⇥';
+    dockBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        settings.drawerWidth = 420;
+        settings.drawerHeight = null;
+        settings.drawerLeft = null;
+        settings.drawerTop = null;
+        saveSettings();
+        applyDrawerBounds(drawer);
+    });
+    // Insert before the close button
+    header.insertBefore(dockBtn, header.querySelector('.coread-close'));
 }
 
 async function renderBookList() {
@@ -484,15 +594,26 @@ function showStatus(text) {
 }
 
 function buildToggleButton(drawer) {
-    const btn = document.createElement('div');
-    btn.id = 'coread-toggle-btn';
-    btn.title = t('coread.toggle');
-    btn.innerHTML = `<i class="fa-solid fa-book-open-reader"></i>`;
-    btn.addEventListener('click', () => drawer.classList.toggle('open'));
-
     const target = document.getElementById('extensionsMenu')
         || document.getElementById('top-bar')
         || document.body;
+
+    const inMenu = target.id === 'extensionsMenu';
+    const btn = document.createElement('div');
+    btn.id = 'coread-toggle-btn';
+    btn.title = t('coread.toggle');
+    if (inMenu) {
+        // Match SillyTavern's extension menu item styling (icon + label)
+        btn.className = 'list-group-item flex-container flexGap5 interactable';
+        btn.tabIndex = 0;
+        btn.innerHTML = `
+            <div class="fa-fw fa-solid fa-book-open-reader extensionsMenuExtensionButton"></div>
+            <span>${t('coread.title')}</span>
+        `;
+    } else {
+        btn.innerHTML = `<i class="fa-solid fa-book-open-reader"></i>`;
+    }
+    btn.addEventListener('click', () => drawer.classList.toggle('open'));
     target.appendChild(btn);
 }
 
