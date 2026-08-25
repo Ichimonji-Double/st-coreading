@@ -358,19 +358,27 @@ async function updateChatInjection() {
 
     if (!settings.injectContextToChat || !drawerOpen || !chunk || !bookId) {
         ctx.setExtensionPrompt(CHAT_PROMPT_NAME, '');
+        console.log('[coread] inject CLEAR', {
+            reason: !settings.injectContextToChat ? 'setting off'
+                : !drawerOpen ? 'drawer closed'
+                : !bookId ? 'no book open'
+                : !chunk ? 'no current chunk'
+                : 'unknown',
+        });
         return;
     }
 
     const book = await db.get('books', bookId);
     if (!book) {
+        console.warn('[coread] inject: no book record for bookId', bookId);
         ctx.setExtensionPrompt(CHAT_PROMPT_NAME, '');
         return;
     }
     const session = await db.get('sessions', `${bookId}__${getCharId()}`);
     const rolling = session?.rollingSummary || '';
-    const chunkText = chunk.paragraphs.join('\n\n');
+    const chunkText = (chunk.paragraphs || []).join('\n\n');
     const sample = chunkText.slice(0, 200);
-    const isChinese = /[㐀-鿿]/.test(sample);
+    const isChinese = /[㐀-鿿]/.test(sample) || /[㐀-鿿]/.test(book.title || '');
 
     const prompt = isChinese ? [
         `[共读时光 · 背景上下文 — 我们正在共读《${book.title}》]`,
@@ -384,7 +392,25 @@ async function updateChatInjection() {
         `\nNote: the above is what the user is reading right now, not something the user just said. When the user references "this passage", "just now", or "this book", use the above as context.`,
     ].filter(Boolean).join('\n');
 
-    ctx.setExtensionPrompt(CHAT_PROMPT_NAME, prompt);
+    // Position 0 = IN_PROMPT (after character defs); role 0 = system; depth 0.
+    // Explicit full args in case a preset relies on non-default defaults.
+    ctx.setExtensionPrompt(CHAT_PROMPT_NAME, prompt, 0, 0, false, 0);
+
+    console.log('[coread] inject SET', {
+        book: book.title,
+        chunkIdx: chunk.idx,
+        paras: chunk.paragraphs?.length ?? 0,
+        chunkTextLen: chunkText.length,
+        rollingLen: rolling.length,
+        promptLen: prompt.length,
+        firstLine: prompt.split('\n')[0],
+    });
+    // Verify readback — if this is empty right after setting, the API name is wrong.
+    const readback = ctx.extensionPrompts?.[CHAT_PROMPT_NAME];
+    console.log('[coread] inject READBACK', {
+        exists: !!readback,
+        len: typeof readback === 'string' ? readback.length : (readback?.value?.length ?? 'n/a'),
+    });
 }
 
 async function openBookInReader(bookId) {
