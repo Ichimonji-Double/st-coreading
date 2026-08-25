@@ -11,6 +11,7 @@ const EXT_ID = 'st-coreading';
 const DEFAULTS = {
     paceTokens: 1200,
     autoNote: true,
+    noteDensity: 'medium', // 'sparse' | 'medium' | 'dense'
     drawerWidth: 420,
 };
 
@@ -87,6 +88,15 @@ function buildDrawer() {
                     ${t('coread.settings.autoNote')}
                 </label>
             </div>
+            <div class="coread-field">
+                <label>${t('coread.settings.density')}</label>
+                <div class="coread-segmented" id="coread-density">
+                    <button data-val="sparse" ${settings.noteDensity === 'sparse' ? 'class="active"' : ''}>${t('coread.settings.density.sparse')}</button>
+                    <button data-val="medium" ${settings.noteDensity === 'medium' ? 'class="active"' : ''}>${t('coread.settings.density.medium')}</button>
+                    <button data-val="dense" ${settings.noteDensity === 'dense' ? 'class="active"' : ''}>${t('coread.settings.density.dense')}</button>
+                </div>
+                <div class="hint">${t('coread.settings.density.hint')}</div>
+            </div>
         </div>
     `;
     document.body.appendChild(drawer);
@@ -112,6 +122,16 @@ function buildDrawer() {
     drawer.querySelector('#coread-auto-note').addEventListener('change', (e) => {
         settings.autoNote = e.target.checked;
         saveSettings();
+    });
+
+    drawer.querySelectorAll('#coread-density button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            settings.noteDensity = btn.dataset.val;
+            drawer.querySelectorAll('#coread-density button').forEach(b => {
+                b.classList.toggle('active', b === btn);
+            });
+            saveSettings();
+        });
     });
 
     drawer.querySelector('#coread-import-btn').addEventListener('click', () => handleImport());
@@ -230,7 +250,7 @@ async function runChunkSummary(book, chunk) {
             await summarizeChunk({ bookId: book.id, charId, chunk, chapter, book });
         } else {
             // Primary: one merged call — character produces summary + notes together
-            const result = await readChunkUnified({ book, chapter, chunk, charId, charName });
+            const result = await readChunkUnified({ book, chapter, chunk, charId, charName, density: settings.noteDensity });
 
             if (!result.ok) {
                 // Safety net: fall back to two-call flow
@@ -241,7 +261,7 @@ async function runChunkSummary(book, chunk) {
                 setReaderStatus(t('coread.status.thinking'));
                 try {
                     await generateNotesForChunk({
-                        book, chapter, chunk, charId, charName, rollingSummary,
+                        book, chapter, chunk, charId, charName, rollingSummary, density: settings.noteDensity,
                     });
                 } catch (e) {
                     console.error('[coread] fallback note generation failed', e);

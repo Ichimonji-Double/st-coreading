@@ -5,6 +5,7 @@
 // (summarizer.summarizeChunk + notes/generator.generateNotesForChunk).
 
 import { db, newId } from '../storage/db.js';
+import { densityGuidance, DEFAULT_DENSITY } from './density.js';
 
 function getContext() {
     return globalThis.SillyTavern?.getContext?.() || null;
@@ -23,8 +24,9 @@ async function askCharacter(prompt) {
     }
 }
 
-function buildUnifiedPrompt({ bookTitle, chapterTitle, rollingSummary, chunk, isChinese }) {
+function buildUnifiedPrompt({ bookTitle, chapterTitle, rollingSummary, chunk, isChinese, density }) {
     const numberedParas = chunk.paragraphs.map((p, i) => `[${i}] ${p}`).join('\n\n');
+    const guidance = densityGuidance(density, chunk.paragraphs.length - 1, isChinese);
 
     if (isChinese) {
         return [
@@ -33,7 +35,7 @@ function buildUnifiedPrompt({ bookTitle, chapterTitle, rollingSummary, chunk, is
             `【刚才读的这段，每段前的 [数字] 是段落编号】\n${numberedParas}`,
             `\n带着你自己的性格和视角读完这段，然后跟我说两件事：`,
             `\n1. **发生了什么**：用 100 字左右复述这段的关键情节推进、人物动向或核心信息，就像你合上书跟朋友说"我刚读到..."那样的口吻。别加评价，只讲事实。`,
-            `2. **你的读后感（可选）**：如果里面有段落让你觉得有意思、被打动、想吐槽、有共鸣——从 [0]-[${chunk.paragraphs.length - 1}] 里挑 1-3 段（宁缺毋滥，别硬凑），每段写 1-2 句你真实的反应。什么都没触动到就留空。`,
+            `2. **你的读后感（可选）**：${guidance}`,
             `\n只返回 JSON，别加代码块围栏，别加任何解释文字：`,
             `{"summary":"<发生了什么>","notes":[{"p":<段落编号>,"text":"<你的反应>"}]}`,
         ].filter(Boolean).join('\n');
@@ -44,7 +46,7 @@ function buildUnifiedPrompt({ bookTitle, chapterTitle, rollingSummary, chunk, is
         `[Passage — each paragraph is prefixed with its index]\n${numberedParas}`,
         `\nRead this as yourself, then tell me two things:`,
         `\n1. **What happened**: recap the key plot/character/info moves in ~100 tokens, in your voice — the way you'd tell a friend "I just read where..." Just facts, no judgment.`,
-        `2. **Your reactions (optional)**: if any paragraph struck you — interesting, moving, worth reacting to — pick 1-3 from [0]-[${chunk.paragraphs.length - 1}] (be selective, don't force it) and write 1-2 sentences of genuine reaction each. If nothing struck you, leave it empty.`,
+        `2. **Your reactions (optional)**: ${guidance}`,
         `\nReturn JSON only, no markdown fences, no explanation text:`,
         `{"summary":"<what happened>","notes":[{"p":<paragraph-index>,"text":"<your reaction>"}]}`,
     ].filter(Boolean).join('\n');
@@ -101,7 +103,7 @@ async function compressRolling(rolling, isChinese) {
 
 // Public: run one merged LLM call. On success, persist summary+rolling+notes.
 // Returns { ok: true, summary, notes: N } or { ok: false, reason, raw }.
-export async function readChunkUnified({ book, chapter, chunk, charId, charName }) {
+export async function readChunkUnified({ book, chapter, chunk, charId, charName, density = DEFAULT_DENSITY }) {
     const sessionId = `${book.id}__${charId}`;
     const session = (await db.get('sessions', sessionId)) || {
         id: sessionId, bookId: book.id, charId, currentChunkId: chunk.id, rollingSummary: '', updatedAt: Date.now(),
@@ -116,6 +118,7 @@ export async function readChunkUnified({ book, chapter, chunk, charId, charName 
         rollingSummary: session.rollingSummary || '',
         chunk,
         isChinese,
+        density,
     });
 
     let raw;

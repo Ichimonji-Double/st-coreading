@@ -144,6 +144,42 @@
     width: 100%;
 }
 
+/* Segmented control (density picker) */
+.coread-segmented {
+    display: flex;
+    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.coread-segmented button {
+    flex: 1;
+    padding: 6px 8px;
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--SmartThemeBorderColor, #444);
+    color: inherit;
+    cursor: pointer;
+    font-size: 12px;
+    opacity: 0.7;
+    transition: background 120ms, opacity 120ms;
+}
+
+.coread-segmented button:last-child {
+    border-right: none;
+}
+
+.coread-segmented button:hover {
+    background: rgba(255, 255, 255, 0.04);
+    opacity: 0.9;
+}
+
+.coread-segmented button.active {
+    background: var(--SmartThemeQuoteColor, #3a4a5a);
+    opacity: 1;
+    font-weight: 600;
+}
+
 /* Book list rows */
 .coread-book-row {
     display: grid;
