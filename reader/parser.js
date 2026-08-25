@@ -2,19 +2,29 @@
 // Output shape:
 //   { title, author, format, chapters: [{ title, text }] }
 
+const JSZIP_CDN = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
 const EPUBJS_CDN = 'https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js';
-let epubJsPromise = null;
 
-function loadEpubJs() {
-    if (globalThis.ePub) return Promise.resolve(globalThis.ePub);
-    if (epubJsPromise) return epubJsPromise;
-    epubJsPromise = new Promise((resolve, reject) => {
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
         const s = document.createElement('script');
-        s.src = EPUBJS_CDN;
-        s.onload = () => resolve(globalThis.ePub);
-        s.onerror = () => reject(new Error('Failed to load epub.js from CDN'));
+        s.src = src;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error(`Failed to load ${src}`));
         document.head.appendChild(s);
     });
+}
+
+let epubJsPromise = null;
+function loadEpubJs() {
+    if (globalThis.ePub && globalThis.JSZip) return Promise.resolve(globalThis.ePub);
+    if (epubJsPromise) return epubJsPromise;
+    epubJsPromise = (async () => {
+        if (!globalThis.JSZip) await loadScript(JSZIP_CDN);
+        if (!globalThis.ePub) await loadScript(EPUBJS_CDN);
+        if (!globalThis.ePub) throw new Error('epub.js loaded but ePub is undefined');
+        return globalThis.ePub;
+    })();
     return epubJsPromise;
 }
 
