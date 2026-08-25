@@ -93,6 +93,12 @@
     display: block;
 }
 
+#coread-drawer .coread-panel.active[data-panel="reader"] {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
 .coread-empty {
     opacity: 0.6;
     text-align: center;
@@ -136,4 +142,127 @@
 
 .coread-field input[type="range"] {
     width: 100%;
+}
+
+/* Book list rows */
+.coread-book-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 6px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
+    cursor: pointer;
+}
+
+.coread-book-row:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.coread-book-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.coread-book-meta {
+    opacity: 0.5;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.coread-book-delete {
+    background: transparent;
+    border: none;
+    color: inherit;
+    opacity: 0.4;
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 13px;
+}
+
+.coread-book-delete:hover {
+    opacity: 1;
+    color: #f66;
+}
+
+/* Reader */
+.coread-reader {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    gap: 8px;
+}
+
+.coread-reader-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
+}
+
+.coread-chapter-title {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.coread-chunk-meta {
+    opacity: 0.5;
+    font-size: 11px;
+    margin-left: 8px;
+}
+
+.coread-reader-body {
+    flex: 1;
+    overflow-y: auto;
+    line-height: 1.7;
+    padding: 4px 2px 12px;
+}
+
+.coread-paragraph {
+    margin: 0 0 12px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 120ms;
+}
+
+.coread-paragraph:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.coread-paragraph.has-note {
+    border-left: 3px solid var(--SmartThemeQuoteColor, #6cf);
+    padding-left: 8px;
+}
+
+.coread-reader-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-top: 1px solid var(--SmartThemeBorderColor, #333);
+}
+
+.coread-progress {
+    opacity: 0.6;
+    font-size: 12px;
+}
+
+/* Status overlay */
+.coread-status {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    color: #fff;
+    z-index: 10;
+    font-size: 13px;
 }

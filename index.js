@@ -1,4 +1,7 @@
-import { db } from './storage/db.js';
+import { db, newId } from './storage/db.js';
+import { parseFile } from './reader/parser.js';
+import { buildChunkRecords } from './reader/chunker.js';
+import { openBook } from './reader/viewer.js';
 
 const EXT_ID = 'st-coreading';
 
@@ -108,9 +111,7 @@ function buildDrawer() {
         saveSettings();
     });
 
-    drawer.querySelector('#coread-import-btn').addEventListener('click', () => {
-        console.log('[coread] import clicked — parser hook TODO');
-    });
+    drawer.querySelector('#coread-import-btn').addEventListener('click', () => handleImport());
 
     initResize(drawer);
     renderBookList();
@@ -150,11 +151,98 @@ async function renderBookList() {
     container.innerHTML = books
         .sort((a, b) => b.importedAt - a.importedAt)
         .map(b => `
-            <div class="coread-book-row" data-id="${b.id}" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--SmartThemeBorderColor,#333)">
-                <span>${b.title}</span>
-                <span style="opacity:.5;font-size:11px">${b.format}</span>
+            <div class="coread-book-row" data-id="${b.id}">
+                <span class="coread-book-title">${escapeHtml(b.title)}</span>
+                <span class="coread-book-meta">${b.format} · ${b.totalChunks || 0} chunks</span>
+                <button class="coread-book-delete" data-id="${b.id}" title="${t('coread.action.delete')}">✕</button>
             </div>
         `).join('');
+
+    container.querySelectorAll('.coread-book-row').forEach(row => {
+        row.addEventListener('click', (e) => {
+            if (e.target.classList.contains('coread-book-delete')) return;
+            openBookInReader(row.dataset.id);
+        });
+    });
+    container.querySelectorAll('.coread-book-delete').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            const book = await db.get('books', id);
+            if (!book) return;
+            if (!confirm(`Delete "${book.title}"?`)) return;
+            await db.clearBook(id);
+            renderBookList();
+        });
+    });
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+}
+
+function switchTab(name) {
+    document.querySelectorAll('#coread-drawer nav.coread-tabs button')
+        .forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    document.querySelectorAll('#coread-drawer .coread-panel')
+        .forEach(p => p.classList.toggle('active', p.dataset.panel === name));
+}
+
+async function openBookInReader(bookId) {
+    switchTab('reader');
+    await openBook(bookId, {
+        getCharId: () => (globalThis.SillyTavern?.getContext?.().characterId ?? 'default'),
+        onParagraphClick: (chunk, pidx, text) => {
+            console.log('[coread] paragraph clicked', chunk.id, pidx, text.slice(0, 40));
+        },
+        onChunkChange: (chunk) => {
+            console.log('[coread] chunk changed →', chunk.id);
+        },
+    });
+}
+
+async function handleImport() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.txt,.epub';
+    input.addEventListener('change', async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        const status = showStatus(t('coread.status.parsing'));
+        try {
+            const parsed = await parseFile(file);
+            const bookId = newId('bk_');
+            const { chapters, chunks } = buildChunkRecords(parsed, bookId, settings.paceTokens, newId);
+            await db.put('books', {
+                id: bookId,
+                title: parsed.title,
+                author: parsed.author,
+                format: parsed.format,
+                importedAt: Date.now(),
+                totalChunks: chunks.length,
+                totalChapters: chapters.length,
+            });
+            for (const ch of chapters) await db.put('chapters', ch);
+            for (const ck of chunks) await db.put('chunks', ck);
+            status.remove();
+            await renderBookList();
+        } catch (err) {
+            console.error('[coread] import failed', err);
+            status.remove();
+            alert('Import failed: ' + err.message);
+        }
+    });
+    input.click();
+}
+
+function showStatus(text) {
+    const box = document.createElement('div');
+    box.className = 'coread-status';
+    box.textContent = text;
+    document.getElementById('coread-drawer')?.appendChild(box);
+    return box;
 }
 
 function buildToggleButton(drawer) {
