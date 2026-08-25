@@ -28,6 +28,10 @@
   "coread.action.next": "下一段",
   "coread.action.note": "写笔记",
   "coread.action.askChar": "让角色评论",
+  "coread.action.save": "保存",
+  "coread.action.cancel": "取消",
+  "coread.editor.placeholder": "写下你的笔记...",
+  "coread.editor.asking": "角色正在思考...",
   "coread.status.reading": "角色正在阅读...",
   "coread.status.thinking": "角色正在思考...",
   "coread.status.parsing": "正在解析书籍..."

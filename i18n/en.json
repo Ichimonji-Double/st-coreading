@@ -28,6 +28,10 @@
   "coread.action.next": "Next",
   "coread.action.note": "Write a note",
   "coread.action.askChar": "Ask the character",
+  "coread.action.save": "Save",
+  "coread.action.cancel": "Cancel",
+  "coread.editor.placeholder": "Write your note...",
+  "coread.editor.asking": "Character is thinking...",
   "coread.status.reading": "The character is reading...",
   "coread.status.thinking": "The character is thinking...",
   "coread.status.parsing": "Parsing the book..."

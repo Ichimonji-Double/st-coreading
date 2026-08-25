@@ -423,6 +423,59 @@
     line-height: 1.5;
 }
 
+/* Inline note editor (opens under clicked paragraph) */
+.coread-note-editor {
+    margin: -6px 0 14px 12px;
+    padding: 8px 10px;
+    border-left: 3px solid #f0a848;
+    background: rgba(240, 168, 72, 0.06);
+    border-radius: 0 4px 4px 0;
+}
+
+.coread-note-editor textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, 0.2);
+    color: inherit;
+    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border-radius: 3px;
+    padding: 6px 8px;
+    font: inherit;
+    font-size: 13px;
+    resize: vertical;
+    min-height: 44px;
+}
+
+.coread-note-editor textarea:focus {
+    outline: none;
+    border-color: #f0a848;
+}
+
+.coread-note-editor-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    align-items: center;
+}
+
+.coread-btn-primary {
+    background: #f0a848 !important;
+    color: #1a1a1a !important;
+    font-weight: 600;
+}
+
+.coread-btn-icon {
+    margin-left: auto;
+    padding: 4px 8px !important;
+}
+
+.coread-note-editor-status {
+    margin-top: 6px;
+    font-size: 12px;
+    opacity: 0.7;
+    font-style: italic;
+}
+
 /* Status overlay */
 .coread-status {
     position: absolute;

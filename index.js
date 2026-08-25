@@ -4,7 +4,7 @@ import { buildChunkRecords } from './reader/chunker.js';
 import { openBook, setReaderStatus, refreshCurrentChunkMeta, refreshContext, refreshParagraphNotes, getCurrentChunkId, jumpToParagraph, currentChunkIdxInBook } from './reader/viewer.js';
 import { summarizeChunk } from './context/summarizer.js';
 import { readChunkUnified } from './context/unified.js';
-import { generateNotesForChunk, getNotesForBook } from './notes/generator.js';
+import { generateNotesForChunk, getNotesForBook, askCharacterAboutParagraph, saveUserNote } from './notes/generator.js';
 
 const EXT_ID = 'st-coreading';
 
@@ -218,9 +218,27 @@ async function openBookInReader(bookId) {
     const book = await db.get('books', bookId);
     await openBook(bookId, {
         getCharId,
-        onParagraphClick: (chunk, pidx, text) => {
-            console.log('[coread] paragraph clicked', chunk.id, pidx, text.slice(0, 40));
+        getLabels: () => ({
+            placeholder: t('coread.editor.placeholder'),
+            save: t('coread.action.save'),
+            ask: t('coread.action.askChar'),
+            cancel: t('coread.action.cancel'),
+            asking: t('coread.editor.asking'),
+        }),
+        onSaveUserNote: async ({ chunk, pIdx, text }) => {
+            await saveUserNote({ book, chunk, pIdx, text });
         },
+        onAskCharacter: async ({ chunk, pIdx }) => {
+            const chapter = await db.get('chapters', chunk.chapterId);
+            const charId = getCharId();
+            const charName = getCharName();
+            const session = await db.get('sessions', `${book.id}__${charId}`);
+            await askCharacterAboutParagraph({
+                book, chapter, chunk, pIdx, charId, charName,
+                rollingSummary: session?.rollingSummary || '',
+            });
+        },
+        onNotesChanged: () => renderNotesPanel(bookId, getCharId()),
         onChunkChange: ({ from, to, direction }) => {
             if (direction === 'forward' && from && !from.summary) {
                 runChunkSummary(book, from).catch(e => console.error('[coread] summary failed', e));

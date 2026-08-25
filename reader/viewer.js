@@ -100,7 +100,10 @@ function render() {
     chunk.paragraphs.forEach((p, i) => {
         const para = el(`<p class="coread-paragraph" data-pidx="${i}"></p>`);
         para.textContent = p;
-        para.addEventListener('click', () => callbacks.onParagraphClick?.(chunk, i, p));
+        para.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openNoteEditor(para, chunk, i, p);
+        });
         body.appendChild(para);
     });
 
@@ -213,6 +216,93 @@ export async function jumpToParagraph(chunkId, paragraphIdx) {
 export function currentChunkIdxInBook(chunkId) {
     return state.chunks.findIndex(c => c.id === chunkId);
 }
+
+let openEditorPidx = -1;
+
+function findEditorAnchor(paraEl) {
+    // Insert after the paragraph's last existing note card (if any), so the
+    // editor visually reads "add a new note after these".
+    let last = paraEl;
+    let next = paraEl.nextElementSibling;
+    while (next && next.classList.contains('coread-note-card')) {
+        last = next;
+        next = next.nextElementSibling;
+    }
+    return last;
+}
+
+function closeNoteEditor() {
+    document.querySelectorAll('#coread-drawer .coread-note-editor').forEach(e => e.remove());
+    openEditorPidx = -1;
+}
+
+function openNoteEditor(paraEl, chunk, pIdx, paraText) {
+    if (openEditorPidx === pIdx) return; // already open here
+    closeNoteEditor();
+    openEditorPidx = pIdx;
+
+    const labels = callbacks.getLabels?.() || {};
+    const editor = el(`
+        <div class="coread-note-editor">
+            <textarea rows="2" placeholder="${labels.placeholder || 'Write your note...'}"></textarea>
+            <div class="coread-note-editor-actions">
+                <button data-act="save" class="coread-btn coread-btn-primary">${labels.save || 'Save'}</button>
+                <button data-act="ask" class="coread-btn">${labels.ask || 'Ask character'}</button>
+                <button data-act="cancel" class="coread-btn coread-btn-icon" title="${labels.cancel || 'Cancel'}">✕</button>
+            </div>
+            <div class="coread-note-editor-status" hidden></div>
+        </div>
+    `);
+    const anchor = findEditorAnchor(paraEl);
+    anchor.insertAdjacentElement('afterend', editor);
+    const ta = editor.querySelector('textarea');
+    ta.focus();
+
+    const setStatus = (text) => {
+        const s = editor.querySelector('.coread-note-editor-status');
+        if (text) { s.textContent = text; s.hidden = false; }
+        else { s.hidden = true; }
+    };
+
+    editor.querySelector('[data-act="save"]').addEventListener('click', async () => {
+        const text = ta.value.trim();
+        if (!text) { ta.focus(); return; }
+        await callbacks.onSaveUserNote?.({ chunk, pIdx, text });
+        closeNoteEditor();
+        renderParagraphNotes(chunk);
+        callbacks.onNotesChanged?.();
+    });
+
+    editor.querySelector('[data-act="ask"]').addEventListener('click', async () => {
+        editor.querySelectorAll('button, textarea').forEach(b => b.disabled = true);
+        setStatus(labels.asking || 'Character is thinking...');
+        try {
+            await callbacks.onAskCharacter?.({ chunk, pIdx, paraText });
+        } finally {
+            closeNoteEditor();
+            renderParagraphNotes(chunk);
+            callbacks.onNotesChanged?.();
+        }
+    });
+
+    editor.querySelector('[data-act="cancel"]').addEventListener('click', closeNoteEditor);
+    editor.addEventListener('click', (e) => e.stopPropagation());
+    ta.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); closeNoteEditor(); }
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            editor.querySelector('[data-act="save"]').click();
+        }
+    });
+}
+
+// Close editor on outside click
+document.addEventListener('click', (e) => {
+    if (openEditorPidx < 0) return;
+    const drawer = document.getElementById('coread-drawer');
+    if (drawer && drawer.contains(e.target)) return;
+    closeNoteEditor();
+});
 
 function turn(delta) {
     const next = state.currentChunkIdx + delta;

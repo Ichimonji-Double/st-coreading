@@ -128,3 +128,80 @@ export async function getNotesForBook(bookId, charId) {
     const all = await db.byIndex('notes', 'bookId', bookId);
     return all.filter(n => n.charId === charId).sort((a, b) => a.ts - b.ts);
 }
+
+// User asked the character to comment on ONE specific paragraph. Returns
+// the saved note record on success, or null if the LLM call failed.
+export async function askCharacterAboutParagraph({ book, chapter, chunk, pIdx, charId, charName, rollingSummary }) {
+    const paragraph = chunk.paragraphs[pIdx];
+    if (!paragraph) return null;
+    const before = pIdx > 0 ? chunk.paragraphs[pIdx - 1] : '';
+    const after = pIdx < chunk.paragraphs.length - 1 ? chunk.paragraphs[pIdx + 1] : '';
+    const isChinese = /[㐀-鿿]/.test(paragraph.slice(0, 200));
+
+    const prompt = isChinese ? [
+        `我们正在共读《${book.title}》${chapter?.title ? `，当前章节：${chapter.title}` : ''}。`,
+        rollingSummary ? `\n【故事至此的梗概】\n${rollingSummary}\n` : '',
+        `我刚看到下面这段觉得挺有意思，你怎么看？`,
+        before ? `\n【上一段】\n${before}` : '',
+        `\n【这一段（我指的就是它）】\n${paragraph}`,
+        after ? `\n【下一段】\n${after}` : '',
+        `\n用 1-3 句话跟我说说你的想法，直接说，别加"好的我来评论"这类开头。`,
+    ].filter(Boolean).join('\n') : [
+        `We're co-reading "${book.title}"${chapter?.title ? `, current chapter: ${chapter.title}` : ''}.`,
+        rollingSummary ? `\n[Story so far]\n${rollingSummary}\n` : '',
+        `This paragraph caught my eye — what do you think?`,
+        before ? `\n[Previous paragraph]\n${before}` : '',
+        `\n[This paragraph (the one I'm pointing at)]\n${paragraph}`,
+        after ? `\n[Next paragraph]\n${after}` : '',
+        `\nReply in 1-3 sentences. Skip preambles like "sure, my thoughts on this..." — just say what you think.`,
+    ].filter(Boolean).join('\n');
+
+    let response;
+    try {
+        response = await askCharacter(prompt);
+    } catch (e) {
+        console.error('[coread] askCharacterAboutParagraph failed', e);
+        return null;
+    }
+    const text = String(response || '').trim();
+    if (!text) return null;
+
+    const note = {
+        id: newId('nt_'),
+        bookId: book.id,
+        chapterId: chunk.chapterId,
+        chunkId: chunk.id,
+        paragraphIdx: pIdx,
+        author: 'char',
+        charId,
+        charName: charName || 'Character',
+        text,
+        ts: Date.now(),
+    };
+    await db.put('notes', note);
+    return note;
+}
+
+// Save a user-written note.
+export async function saveUserNote({ book, chunk, pIdx, text }) {
+    const clean = String(text || '').trim();
+    if (!clean) return null;
+    const note = {
+        id: newId('nt_'),
+        bookId: book.id,
+        chapterId: chunk.chapterId,
+        chunkId: chunk.id,
+        paragraphIdx: pIdx,
+        author: 'user',
+        charId: null,
+        charName: 'You',
+        text: clean,
+        ts: Date.now(),
+    };
+    await db.put('notes', note);
+    return note;
+}
+
+export async function deleteNote(noteId) {
+    await db.delete('notes', noteId);
+}
