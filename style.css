@@ -313,11 +313,49 @@
     background: rgba(240, 168, 72, 0.08);
 }
 
+.coread-note-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 2px;
+}
+
 .coread-note-author {
     font-size: 11px;
     opacity: 0.7;
-    margin-bottom: 2px;
     font-weight: 600;
+}
+
+.coread-note-anchor {
+    font-size: 10px;
+    opacity: 0.55;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+}
+
+.coread-note-item {
+    cursor: pointer;
+    transition: background 120ms;
+}
+
+.coread-note-item:hover {
+    background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.coread-note-item:hover .coread-note-anchor {
+    opacity: 0.9;
+}
+
+@keyframes coread-flash {
+    0%   { background: rgba(255, 220, 100, 0.35); }
+    100% { background: transparent; }
+}
+
+.coread-paragraph.coread-jump-flash {
+    animation: coread-flash 1.6s ease-out;
 }
 
 .coread-note-text {

@@ -163,7 +163,10 @@ async function renderParagraphNotes(chunk) {
         for (const n of noteList) {
             const card = el(`
                 <div class="coread-note-card ${n.author === 'char' ? 'note-char' : 'note-user'}">
-                    <div class="coread-note-author">${escapeHtml(n.charName || (n.author === 'user' ? 'You' : 'Character'))}</div>
+                    <div class="coread-note-head">
+                        <span class="coread-note-author">${escapeHtml(n.charName || (n.author === 'user' ? 'You' : 'Character'))}</span>
+                        <span class="coread-note-anchor" title="paragraph ${n.paragraphIdx}">¶${n.paragraphIdx}</span>
+                    </div>
                     <div class="coread-note-text"></div>
                 </div>
             `);
@@ -184,6 +187,28 @@ export function refreshParagraphNotes() {
 
 export function getCurrentChunkId() {
     return state.chunks[state.currentChunkIdx]?.id;
+}
+
+export async function jumpToParagraph(chunkId, paragraphIdx) {
+    const idx = state.chunks.findIndex(c => c.id === chunkId);
+    if (idx < 0) return false;
+    if (idx !== state.currentChunkIdx) {
+        state.currentChunkIdx = idx;
+        render();
+        // render is sync but notes render is async; give it a tick
+        await new Promise(r => setTimeout(r, 50));
+        await renderParagraphNotes(state.chunks[idx]);
+    }
+    const para = document.querySelector(`#coread-drawer .coread-paragraph[data-pidx="${paragraphIdx}"]`);
+    if (!para) return false;
+    para.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    para.classList.add('coread-jump-flash');
+    setTimeout(() => para.classList.remove('coread-jump-flash'), 1600);
+    return true;
+}
+
+export function currentChunkIdxInBook(chunkId) {
+    return state.chunks.findIndex(c => c.id === chunkId);
 }
 
 function turn(delta) {

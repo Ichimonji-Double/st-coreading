@@ -1,7 +1,7 @@
 import { db, newId } from './storage/db.js';
 import { parseFile } from './reader/parser.js';
 import { buildChunkRecords } from './reader/chunker.js';
-import { openBook, setReaderStatus, refreshCurrentChunkMeta, refreshContext, refreshParagraphNotes, getCurrentChunkId } from './reader/viewer.js';
+import { openBook, setReaderStatus, refreshCurrentChunkMeta, refreshContext, refreshParagraphNotes, getCurrentChunkId, jumpToParagraph, currentChunkIdxInBook } from './reader/viewer.js';
 import { summarizeChunk } from './context/summarizer.js';
 import { readChunkUnified } from './context/unified.js';
 import { generateNotesForChunk, getNotesForBook } from './notes/generator.js';
@@ -289,12 +289,19 @@ async function renderNotesPanel(bookId, charId) {
 
     host.innerHTML = sortedChapterIds.map(cid => {
         const chapter = chapterMap.get(cid);
-        const items = byChapter.get(cid).map(n => `
-            <div class="coread-note-item">
-                <div class="coread-note-author">${escapeHtml(n.charName || 'Character')}</div>
+        const items = byChapter.get(cid).map(n => {
+            const chunkIdxDisplay = chapter?.chunkIds?.indexOf(n.chunkId);
+            const chunkLabel = chunkIdxDisplay >= 0 ? `#${chunkIdxDisplay + 1}·¶${n.paragraphIdx}` : `¶${n.paragraphIdx}`;
+            return `
+            <div class="coread-note-item" data-chunk-id="${n.chunkId}" data-p-idx="${n.paragraphIdx}" title="Click to jump to source">
+                <div class="coread-note-head">
+                    <span class="coread-note-author">${escapeHtml(n.charName || 'Character')}</span>
+                    <span class="coread-note-anchor">${chunkLabel}</span>
+                </div>
                 <div class="coread-note-text">${escapeHtml(n.text)}</div>
             </div>
-        `).join('');
+        `;
+        }).join('');
         return `
             <div class="coread-notes-group">
                 <div class="coread-notes-chapter">${escapeHtml(chapter?.title || 'Unknown chapter')}</div>
@@ -302,6 +309,18 @@ async function renderNotesPanel(bookId, charId) {
             </div>
         `;
     }).join('');
+
+    // Wire click → jump to source paragraph in reader
+    host.querySelectorAll('.coread-note-item').forEach(item => {
+        item.addEventListener('click', async () => {
+            const chunkId = item.dataset.chunkId;
+            const pIdx = Number(item.dataset.pIdx);
+            switchTab('reader');
+            // wait for reader tab to be visible
+            await new Promise(r => setTimeout(r, 30));
+            await jumpToParagraph(chunkId, pIdx);
+        });
+    });
 }
 
 async function handleImport() {
