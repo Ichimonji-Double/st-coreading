@@ -146,6 +146,12 @@ export function refreshContext() {
 }
 
 async function renderParagraphNotes(chunk) {
+    // Idempotent: clear any previously-rendered note cards + markers first,
+    // so callers can invoke this multiple times without producing duplicates.
+    document.querySelectorAll('#coread-drawer .coread-note-card').forEach(c => c.remove());
+    document.querySelectorAll('#coread-drawer .coread-paragraph.has-note')
+        .forEach(p => p.classList.remove('has-note'));
+
     const charId = callbacks.getCharId?.() || 'default';
     const notes = await getNotesForChunk(state.bookId, charId, chunk.id);
     if (!notes.length) return;
@@ -179,9 +185,6 @@ async function renderParagraphNotes(chunk) {
 export function refreshParagraphNotes() {
     const chunk = state.chunks[state.currentChunkIdx];
     if (!chunk) return;
-    // Remove existing note cards first
-    document.querySelectorAll('#coread-drawer .coread-note-card').forEach(c => c.remove());
-    document.querySelectorAll('#coread-drawer .coread-paragraph.has-note').forEach(p => p.classList.remove('has-note'));
     renderParagraphNotes(chunk);
 }
 
