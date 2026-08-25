@@ -207,3 +207,14 @@ export async function saveUserNote({ book, chunk, pIdx, text, charId }) {
 export async function deleteNote(noteId) {
     await db.delete('notes', noteId);
 }
+
+export async function updateNoteText(noteId, text) {
+    const note = await db.get('notes', noteId);
+    if (!note) return null;
+    const clean = String(text || '').trim();
+    if (!clean) return null;
+    note.text = clean;
+    note.editedTs = Date.now();
+    await db.put('notes', note);
+    return note;
+}

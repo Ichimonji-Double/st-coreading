@@ -372,6 +372,60 @@
     cursor: pointer;
 }
 
+.coread-note-controls {
+    display: flex;
+    gap: 2px;
+    margin-left: auto;
+    margin-right: 6px;
+    opacity: 0;
+    transition: opacity 120ms;
+}
+
+.coread-note-card:hover .coread-note-controls,
+.coread-note-item:hover .coread-note-controls {
+    opacity: 1;
+}
+
+.coread-note-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: inherit;
+    opacity: 0.6;
+    cursor: pointer;
+    padding: 0 5px;
+    font-size: 12px;
+    line-height: 1.6;
+    border-radius: 3px;
+}
+
+.coread-note-btn:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.coread-note-btn.coread-note-del:hover {
+    color: #f66;
+}
+
+.coread-note-inline-edit textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, 0.2);
+    color: inherit;
+    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border-radius: 3px;
+    padding: 6px 8px;
+    font: inherit;
+    font-size: 13px;
+    resize: vertical;
+    min-height: 44px;
+}
+
+.coread-note-inline-edit textarea:focus {
+    outline: none;
+    border-color: #f0a848;
+}
+
 .coread-note-item {
     cursor: pointer;
     transition: background 120ms;

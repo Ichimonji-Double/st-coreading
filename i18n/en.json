@@ -30,6 +30,8 @@
   "coread.action.askChar": "Ask the character",
   "coread.action.save": "Save",
   "coread.action.cancel": "Cancel",
+  "coread.action.edit": "Edit",
+  "coread.confirm.deleteNote": "Delete this note?",
   "coread.editor.placeholder": "Write your note...",
   "coread.editor.asking": "Character is thinking...",
   "coread.status.reading": "The character is reading...",

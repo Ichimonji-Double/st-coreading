@@ -4,7 +4,7 @@ import { buildChunkRecords } from './reader/chunker.js';
 import { openBook, setReaderStatus, refreshCurrentChunkMeta, refreshContext, refreshParagraphNotes, getCurrentChunkId, jumpToParagraph, currentChunkIdxInBook } from './reader/viewer.js';
 import { summarizeChunk } from './context/summarizer.js';
 import { readChunkUnified } from './context/unified.js';
-import { generateNotesForChunk, getNotesForBook, askCharacterAboutParagraph, saveUserNote } from './notes/generator.js';
+import { generateNotesForChunk, getNotesForBook, askCharacterAboutParagraph, saveUserNote, deleteNote, updateNoteText } from './notes/generator.js';
 
 const EXT_ID = 'st-coreading';
 
@@ -224,6 +224,7 @@ async function openBookInReader(bookId) {
             ask: t('coread.action.askChar'),
             cancel: t('coread.action.cancel'),
             asking: t('coread.editor.asking'),
+            confirmDelete: t('coread.confirm.deleteNote'),
         }),
         onSaveUserNote: async ({ chunk, pIdx, text }) => {
             await saveUserNote({ book, chunk, pIdx, text, charId: getCharId() });
@@ -330,10 +331,16 @@ async function renderNotesPanel(bookId, charId) {
         const items = byChapter.get(cid).map(n => {
             const chunkIdxDisplay = chapter?.chunkIds?.indexOf(n.chunkId);
             const chunkLabel = chunkIdxDisplay >= 0 ? `#${chunkIdxDisplay + 1}·¶${n.paragraphIdx}` : `¶${n.paragraphIdx}`;
+            const isUser = n.author === 'user';
+            const controls = isUser ? `
+                <button class="coread-note-btn coread-note-edit" data-id="${n.id}" title="${t('coread.action.edit')}">✎</button>
+                <button class="coread-note-btn coread-note-del" data-id="${n.id}" title="${t('coread.action.delete')}">✕</button>
+            ` : '';
             return `
-            <div class="coread-note-item" data-chunk-id="${n.chunkId}" data-p-idx="${n.paragraphIdx}" title="Click to jump to source">
+            <div class="coread-note-item ${isUser ? 'note-user-item' : ''}" data-note-id="${n.id}" data-chunk-id="${n.chunkId}" data-p-idx="${n.paragraphIdx}" title="Click to jump to source">
                 <div class="coread-note-head">
                     <span class="coread-note-author">${escapeHtml(n.charName || 'Character')}</span>
+                    <div class="coread-note-controls">${controls}</div>
                     <span class="coread-note-anchor">${chunkLabel}</span>
                 </div>
                 <div class="coread-note-text">${escapeHtml(n.text)}</div>
@@ -348,15 +355,69 @@ async function renderNotesPanel(bookId, charId) {
         `;
     }).join('');
 
-    // Wire click → jump to source paragraph in reader
+    // Wire click → jump to source (skip when clicking on the inline controls)
     host.querySelectorAll('.coread-note-item').forEach(item => {
-        item.addEventListener('click', async () => {
+        item.addEventListener('click', async (e) => {
+            if (e.target.closest('.coread-note-btn') || e.target.closest('.coread-note-inline-edit')) return;
             const chunkId = item.dataset.chunkId;
             const pIdx = Number(item.dataset.pIdx);
             switchTab('reader');
-            // wait for reader tab to be visible
             await new Promise(r => setTimeout(r, 30));
             await jumpToParagraph(chunkId, pIdx);
+        });
+    });
+
+    // Wire delete
+    host.querySelectorAll('.coread-note-del').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (!confirm(t('coread.confirm.deleteNote'))) return;
+            await deleteNote(btn.dataset.id);
+            renderNotesPanel(bookId, charId);
+            refreshParagraphNotes();
+        });
+    });
+
+    // Wire inline edit
+    host.querySelectorAll('.coread-note-edit').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const item = btn.closest('.coread-note-item');
+            const textEl = item.querySelector('.coread-note-text');
+            if (item.querySelector('.coread-note-inline-edit')) return;
+            const original = textEl.textContent;
+            const editor = document.createElement('div');
+            editor.className = 'coread-note-inline-edit';
+            editor.innerHTML = `
+                <textarea rows="2"></textarea>
+                <div class="coread-note-editor-actions">
+                    <button data-act="save" class="coread-btn coread-btn-primary">${t('coread.action.save')}</button>
+                    <button data-act="cancel" class="coread-btn">${t('coread.action.cancel')}</button>
+                </div>
+            `;
+            editor.querySelector('textarea').value = original;
+            textEl.replaceWith(editor);
+            const ta = editor.querySelector('textarea');
+            ta.focus();
+            ta.setSelectionRange(ta.value.length, ta.value.length);
+            editor.addEventListener('click', (ev) => ev.stopPropagation());
+            editor.querySelector('[data-act="save"]').addEventListener('click', async () => {
+                const text = ta.value.trim();
+                if (!text) return;
+                await updateNoteText(btn.dataset.id, text);
+                renderNotesPanel(bookId, charId);
+                refreshParagraphNotes();
+            });
+            editor.querySelector('[data-act="cancel"]').addEventListener('click', () => {
+                renderNotesPanel(bookId, charId);
+            });
+            ta.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Escape') { ev.preventDefault(); renderNotesPanel(bookId, charId); }
+                if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) {
+                    ev.preventDefault();
+                    editor.querySelector('[data-act="save"]').click();
+                }
+            });
         });
     });
 }

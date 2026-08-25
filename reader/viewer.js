@@ -2,7 +2,7 @@
 // Emits events via the callback bag passed to mount().
 
 import { db } from '../storage/db.js';
-import { getNotesForChunk } from '../notes/generator.js';
+import { getNotesForChunk, deleteNote, updateNoteText } from '../notes/generator.js';
 
 let state = {
     bookId: null,
@@ -170,16 +170,7 @@ async function renderParagraphNotes(chunk) {
         if (!noteList) continue;
         p.classList.add('has-note');
         for (const n of noteList) {
-            const card = el(`
-                <div class="coread-note-card ${n.author === 'char' ? 'note-char' : 'note-user'}">
-                    <div class="coread-note-head">
-                        <span class="coread-note-author">${escapeHtml(n.charName || (n.author === 'user' ? 'You' : 'Character'))}</span>
-                        <span class="coread-note-anchor" title="paragraph ${n.paragraphIdx}">¶${n.paragraphIdx}</span>
-                    </div>
-                    <div class="coread-note-text"></div>
-                </div>
-            `);
-            card.querySelector('.coread-note-text').textContent = n.text;
+            const card = buildNoteCard(n, chunk);
             p.insertAdjacentElement('afterend', card);
         }
     }
@@ -189,6 +180,86 @@ export function refreshParagraphNotes() {
     const chunk = state.chunks[state.currentChunkIdx];
     if (!chunk) return;
     renderParagraphNotes(chunk);
+}
+
+function buildNoteCard(n, chunk) {
+    const isUser = n.author === 'user';
+    const authorLabel = escapeHtml(n.charName || (isUser ? 'You' : 'Character'));
+    const controls = isUser ? `
+        <button class="coread-note-btn coread-note-edit" title="edit">✎</button>
+        <button class="coread-note-btn coread-note-del" title="delete">✕</button>
+    ` : '';
+    const card = el(`
+        <div class="coread-note-card ${isUser ? 'note-user' : 'note-char'}" data-note-id="${n.id}">
+            <div class="coread-note-head">
+                <span class="coread-note-author">${authorLabel}</span>
+                <div class="coread-note-controls">${controls}</div>
+                <span class="coread-note-anchor" title="paragraph ${n.paragraphIdx}">¶${n.paragraphIdx}</span>
+            </div>
+            <div class="coread-note-text"></div>
+        </div>
+    `);
+    card.querySelector('.coread-note-text').textContent = n.text;
+    if (isUser) wireNoteControls(card, n, chunk);
+    return card;
+}
+
+function wireNoteControls(card, n, chunk) {
+    const editBtn = card.querySelector('.coread-note-edit');
+    const delBtn = card.querySelector('.coread-note-del');
+    const labels = callbacks.getLabels?.() || {};
+
+    editBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        beginInlineEdit(card, n, chunk);
+    });
+
+    delBtn?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm(labels.confirmDelete || 'Delete this note?')) return;
+        await deleteNote(n.id);
+        renderParagraphNotes(chunk);
+        callbacks.onNotesChanged?.();
+    });
+}
+
+function beginInlineEdit(card, n, chunk) {
+    const textEl = card.querySelector('.coread-note-text');
+    const original = n.text;
+    const labels = callbacks.getLabels?.() || {};
+    const editor = el(`
+        <div class="coread-note-inline-edit">
+            <textarea rows="2"></textarea>
+            <div class="coread-note-editor-actions">
+                <button data-act="save" class="coread-btn coread-btn-primary">${labels.save || 'Save'}</button>
+                <button data-act="cancel" class="coread-btn">${labels.cancel || 'Cancel'}</button>
+            </div>
+        </div>
+    `);
+    editor.querySelector('textarea').value = original;
+    textEl.replaceWith(editor);
+    const ta = editor.querySelector('textarea');
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+
+    editor.addEventListener('click', (e) => e.stopPropagation());
+    editor.querySelector('[data-act="save"]').addEventListener('click', async () => {
+        const text = ta.value.trim();
+        if (!text) return;
+        await updateNoteText(n.id, text);
+        renderParagraphNotes(chunk);
+        callbacks.onNotesChanged?.();
+    });
+    editor.querySelector('[data-act="cancel"]').addEventListener('click', () => {
+        renderParagraphNotes(chunk);
+    });
+    ta.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); renderParagraphNotes(chunk); }
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            editor.querySelector('[data-act="save"]').click();
+        }
+    });
 }
 
 export function getCurrentChunkId() {

@@ -30,6 +30,8 @@
   "coread.action.askChar": "让角色评论",
   "coread.action.save": "保存",
   "coread.action.cancel": "取消",
+  "coread.action.edit": "编辑",
+  "coread.confirm.deleteNote": "确定要删除这条笔记吗？",
   "coread.editor.placeholder": "写下你的笔记...",
   "coread.editor.asking": "角色正在思考...",
   "coread.status.reading": "角色正在阅读...",
