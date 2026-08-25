@@ -77,6 +77,10 @@ function render() {
                 <div class="coread-chapter-title"></div>
                 <div class="coread-chunk-meta"></div>
             </div>
+            <details class="coread-ctx">
+                <summary>AI context</summary>
+                <div class="coread-ctx-body"></div>
+            </details>
             <div class="coread-reader-body"></div>
             <div class="coread-reader-nav">
                 <button class="coread-btn" data-act="prev">◀</button>
@@ -86,7 +90,8 @@ function render() {
         </div>
     `);
     wrap.querySelector('.coread-chapter-title').textContent = chapter?.title || '';
-    wrap.querySelector('.coread-chunk-meta').textContent = `~${chunk.tokenEst} tok`;
+    const metaTxt = chunk.summary ? '✓ summarized' : `~${chunk.tokenEst} tok`;
+    wrap.querySelector('.coread-chunk-meta').textContent = metaTxt;
     wrap.querySelector('.coread-progress').textContent =
         `${state.currentChunkIdx + 1} / ${state.chunks.length}`;
 
@@ -103,14 +108,62 @@ function render() {
 
     host.appendChild(wrap);
     saveProgress();
+    renderContext();
+}
+
+async function renderContext() {
+    const body = document.querySelector('#coread-drawer .coread-ctx-body');
+    if (!body) return;
+    const chunk = state.chunks[state.currentChunkIdx];
+    const activeCharId = callbacks.getCharId?.() || 'default';
+    const session = await db.get('sessions', `${state.bookId}__${activeCharId}`);
+    const rolling = session?.rollingSummary || '';
+    const chunkSummary = chunk?.summary || '';
+    body.innerHTML = `
+        <div class="coread-ctx-block">
+            <div class="coread-ctx-label">Rolling summary</div>
+            <div class="coread-ctx-text">${escapeHtml(rolling) || '<em>empty</em>'}</div>
+        </div>
+        <div class="coread-ctx-block">
+            <div class="coread-ctx-label">Current chunk summary</div>
+            <div class="coread-ctx-text">${escapeHtml(chunkSummary) || '<em>not yet summarized</em>'}</div>
+        </div>
+    `;
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+}
+
+export function refreshContext() {
+    renderContext();
 }
 
 function turn(delta) {
     const next = state.currentChunkIdx + delta;
     if (next < 0 || next >= state.chunks.length) return;
+    const fromChunk = state.chunks[state.currentChunkIdx];
     state.currentChunkIdx = next;
     render();
-    callbacks.onChunkChange?.(state.chunks[next]);
+    callbacks.onChunkChange?.({
+        from: fromChunk,
+        to: state.chunks[next],
+        direction: delta > 0 ? 'forward' : 'backward',
+    });
+}
+
+export function setReaderStatus(text) {
+    const meta = document.querySelector('#coread-drawer .coread-chunk-meta');
+    if (meta && text) meta.textContent = text;
+}
+
+export function refreshCurrentChunkMeta() {
+    const chunk = state.chunks[state.currentChunkIdx];
+    const meta = document.querySelector('#coread-drawer .coread-chunk-meta');
+    if (!chunk || !meta) return;
+    meta.textContent = chunk.summary ? '✓ summarized' : `~${chunk.tokenEst} tok`;
 }
 
 export function isOpen() {

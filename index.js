@@ -1,7 +1,8 @@
 import { db, newId } from './storage/db.js';
 import { parseFile } from './reader/parser.js';
 import { buildChunkRecords } from './reader/chunker.js';
-import { openBook } from './reader/viewer.js';
+import { openBook, setReaderStatus, refreshCurrentChunkMeta, refreshContext } from './reader/viewer.js';
+import { summarizeChunk } from './context/summarizer.js';
 
 const EXT_ID = 'st-coreading';
 
@@ -192,15 +193,43 @@ function switchTab(name) {
 
 async function openBookInReader(bookId) {
     switchTab('reader');
+    const book = await db.get('books', bookId);
     await openBook(bookId, {
-        getCharId: () => (globalThis.SillyTavern?.getContext?.().characterId ?? 'default'),
+        getCharId,
         onParagraphClick: (chunk, pidx, text) => {
             console.log('[coread] paragraph clicked', chunk.id, pidx, text.slice(0, 40));
         },
-        onChunkChange: (chunk) => {
-            console.log('[coread] chunk changed →', chunk.id);
+        onChunkChange: ({ from, to, direction }) => {
+            if (direction === 'forward' && from && !from.summary) {
+                runChunkSummary(book, from).catch(e => console.error('[coread] summary failed', e));
+            }
         },
     });
+}
+
+function getCharId() {
+    const ctx = globalThis.SillyTavern?.getContext?.();
+    if (!ctx) return 'default';
+    // characterId may live on ctx directly or under ctx.characterId
+    return String(ctx.characterId ?? ctx.characters?.[ctx.characterId]?.avatar ?? 'default');
+}
+
+async function runChunkSummary(book, chunk) {
+    if (chunk.summary) return;
+    const chapter = await db.get('chapters', chunk.chapterId);
+    setReaderStatus(t('coread.status.reading'));
+    try {
+        await summarizeChunk({
+            bookId: book.id,
+            charId: getCharId(),
+            chunk,
+            chapter,
+            book,
+        });
+    } finally {
+        refreshCurrentChunkMeta();
+        refreshContext();
+    }
 }
 
 async function handleImport() {
