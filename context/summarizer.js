@@ -18,13 +18,15 @@ async function callLLM(prompt) {
 
     if (typeof ctx.generateQuietPrompt === 'function') {
         // Positional signature: (quietPrompt, quietToLoud, skipWIAN, quietImage, quietName, responseLength)
+        // Do NOT override responseLength — extended-thinking presets (Claude) require
+        // max_tokens > thinking.budget_tokens, so trust the user's preset.
         try {
-            const result = await ctx.generateQuietPrompt(prompt, false, true, null, 'CoReader', 300);
+            const result = await ctx.generateQuietPrompt(prompt, false, true, null, 'CoReader');
             if (typeof result === 'string' && result.trim()) return result.trim();
         } catch (e) {
             console.warn('[coread] generateQuietPrompt positional failed, trying object arg', e);
             try {
-                const result = await ctx.generateQuietPrompt({ quietPrompt: prompt, quietToLoud: false, skipWIAN: true, quietName: 'CoReader', responseLength: 300 });
+                const result = await ctx.generateQuietPrompt({ quietPrompt: prompt, quietToLoud: false, skipWIAN: true, quietName: 'CoReader' });
                 if (typeof result === 'string' && result.trim()) return result.trim();
             } catch (e2) {
                 console.warn('[coread] generateQuietPrompt object failed', e2);
@@ -34,7 +36,7 @@ async function callLLM(prompt) {
 
     if (typeof ctx.generateRaw === 'function') {
         try {
-            const result = await ctx.generateRaw({ prompt, systemPrompt: '', responseLength: 300 });
+            const result = await ctx.generateRaw({ prompt, systemPrompt: '' });
             if (typeof result === 'string' && result.trim()) return result.trim();
         } catch (e) {
             console.warn('[coread] generateRaw failed', e);
