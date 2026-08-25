@@ -347,9 +347,28 @@ function switchTab(name) {
 // Guardrails: only inject when BOTH the "inject" setting is ON AND the
 // drawer is currently open AND a book is open in the reader. Any of those
 // false → clear the extension prompt so the next chat is context-free.
-async function updateChatInjection() {
+// Resolve ST's setExtensionPrompt across versions. Newer builds may expose it
+// on the top-level SillyTavern object rather than through getContext().
+function resolveSetExtensionPrompt() {
     const ctx = globalThis.SillyTavern?.getContext?.();
-    if (!ctx || typeof ctx.setExtensionPrompt !== 'function') return;
+    if (ctx && typeof ctx.setExtensionPrompt === 'function') {
+        return { fn: (...a) => ctx.setExtensionPrompt(...a), src: 'ctx.setExtensionPrompt', promptStore: ctx.extensionPrompts };
+    }
+    if (typeof globalThis.SillyTavern?.setExtensionPrompt === 'function') {
+        return { fn: (...a) => globalThis.SillyTavern.setExtensionPrompt(...a), src: 'SillyTavern.setExtensionPrompt', promptStore: globalThis.SillyTavern.extensionPrompts };
+    }
+    if (typeof globalThis.setExtensionPrompt === 'function') {
+        return { fn: (...a) => globalThis.setExtensionPrompt(...a), src: 'globalThis.setExtensionPrompt', promptStore: globalThis.extension_prompts };
+    }
+    return null;
+}
+
+async function updateChatInjection() {
+    const api = resolveSetExtensionPrompt();
+    if (!api) {
+        console.warn('[coread] inject NOAPI — setExtensionPrompt not found on ST context or global; injection disabled');
+        return;
+    }
 
     const drawer = document.getElementById('coread-drawer');
     const drawerOpen = drawer?.classList.contains('open');
@@ -357,8 +376,9 @@ async function updateChatInjection() {
     const bookId = getOpenBookId();
 
     if (!settings.injectContextToChat || !drawerOpen || !chunk || !bookId) {
-        ctx.setExtensionPrompt(CHAT_PROMPT_NAME, '');
+        api.fn(CHAT_PROMPT_NAME, '');
         console.log('[coread] inject CLEAR', {
+            via: api.src,
             reason: !settings.injectContextToChat ? 'setting off'
                 : !drawerOpen ? 'drawer closed'
                 : !bookId ? 'no book open'
@@ -371,7 +391,7 @@ async function updateChatInjection() {
     const book = await db.get('books', bookId);
     if (!book) {
         console.warn('[coread] inject: no book record for bookId', bookId);
-        ctx.setExtensionPrompt(CHAT_PROMPT_NAME, '');
+        api.fn(CHAT_PROMPT_NAME, '');
         return;
     }
     const session = await db.get('sessions', `${bookId}__${getCharId()}`);
@@ -394,9 +414,10 @@ async function updateChatInjection() {
 
     // Position 0 = IN_PROMPT (after character defs); role 0 = system; depth 0.
     // Explicit full args in case a preset relies on non-default defaults.
-    ctx.setExtensionPrompt(CHAT_PROMPT_NAME, prompt, 0, 0, false, 0);
+    api.fn(CHAT_PROMPT_NAME, prompt, 0, 0, false, 0);
 
     console.log('[coread] inject SET', {
+        via: api.src,
         book: book.title,
         chunkIdx: chunk.idx,
         paras: chunk.paragraphs?.length ?? 0,
@@ -405,10 +426,11 @@ async function updateChatInjection() {
         promptLen: prompt.length,
         firstLine: prompt.split('\n')[0],
     });
-    // Verify readback — if this is empty right after setting, the API name is wrong.
-    const readback = ctx.extensionPrompts?.[CHAT_PROMPT_NAME];
+    const store = api.promptStore;
+    const readback = store?.[CHAT_PROMPT_NAME];
     console.log('[coread] inject READBACK', {
-        exists: !!readback,
+        storeExists: !!store,
+        entryExists: !!readback,
         len: typeof readback === 'string' ? readback.length : (readback?.value?.length ?? 'n/a'),
     });
 }
