@@ -3,6 +3,7 @@ import { parseFile } from './reader/parser.js';
 import { buildChunkRecords } from './reader/chunker.js';
 import { openBook, setReaderStatus, refreshCurrentChunkMeta, refreshContext, refreshParagraphNotes, getCurrentChunkId } from './reader/viewer.js';
 import { summarizeChunk } from './context/summarizer.js';
+import { readChunkUnified } from './context/unified.js';
 import { generateNotesForChunk, getNotesForBook } from './notes/generator.js';
 
 const EXT_ID = 'st-coreading';
@@ -220,37 +221,42 @@ async function runChunkSummary(book, chunk) {
     if (chunk.summary) return;
     const chapter = await db.get('chapters', chunk.chapterId);
     const charId = getCharId();
+    const charName = getCharName();
     setReaderStatus(t('coread.status.reading'));
-    try {
-        const { rollingSummary } = await summarizeChunk({
-            bookId: book.id,
-            charId,
-            chunk,
-            chapter,
-            book,
-        });
-        refreshCurrentChunkMeta();
-        refreshContext();
 
-        if (settings.autoNote) {
-            setReaderStatus(t('coread.status.thinking'));
-            try {
-                const charName = getCharName();
-                const notes = await generateNotesForChunk({
-                    book, chapter, chunk, charId, charName, rollingSummary,
+    try {
+        if (!settings.autoNote) {
+            // Notes disabled — just a plain summary via raw (no character involvement)
+            await summarizeChunk({ bookId: book.id, charId, chunk, chapter, book });
+        } else {
+            // Primary: one merged call — character produces summary + notes together
+            const result = await readChunkUnified({ book, chapter, chunk, charId, charName });
+
+            if (!result.ok) {
+                // Safety net: fall back to two-call flow
+                console.warn('[coread] unified failed, falling back to split calls:', result.reason);
+                const { rollingSummary } = await summarizeChunk({
+                    bookId: book.id, charId, chunk, chapter, book,
                 });
-                console.log('[coread] notes generated:', notes.length);
-                // If we're still on this chunk (or came back to it), reveal
-                if (getCurrentChunkId() === chunk.id || notes.length) {
-                    refreshParagraphNotes();
-                    renderNotesPanel(book.id, charId);
+                setReaderStatus(t('coread.status.thinking'));
+                try {
+                    await generateNotesForChunk({
+                        book, chapter, chunk, charId, charName, rollingSummary,
+                    });
+                } catch (e) {
+                    console.error('[coread] fallback note generation failed', e);
                 }
-            } catch (e) {
-                console.error('[coread] note generation failed', e);
+            } else {
+                console.log(`[coread] unified read ok — ${result.notes} note(s)`);
             }
         }
+    } catch (e) {
+        console.error('[coread] chunk read failed', e);
     } finally {
         refreshCurrentChunkMeta();
+        refreshContext();
+        refreshParagraphNotes();
+        renderNotesPanel(book.id, charId);
     }
 }
 
