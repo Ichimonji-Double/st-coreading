@@ -74,6 +74,18 @@ export function parseTxt(text, filename) {
     };
 }
 
+function looksLikeMetadataPage(text) {
+    const sample = text.slice(0, 600);
+    const hits = [
+        /版权(所有|页)|保留(所有|一切)?权利|©|copyright/i,
+        /出版(社|发行)|ISBN[:：]?\s*[\d-]+/,
+        /All rights reserved/i,
+        /印次|印张|印数|字数|开本/,
+    ].reduce((n, re) => n + (re.test(sample) ? 1 : 0), 0);
+    // Multiple metadata markers in a short section → probably copyright/imprint page
+    return hits >= 2 && text.length < 800;
+}
+
 async function extractEpubSectionText(book, item) {
     const doc = await book.load(item.href);
     // doc is an XHTML Document
@@ -110,15 +122,21 @@ export async function parseEpub(arrayBuffer, filename) {
 
     const spineItems = book.spine?.spineItems || [];
     const chapters = [];
+    const MIN_CHAPTER_CHARS = 200; // filter out cover, copyright, nav, colophon
     for (let i = 0; i < spineItems.length; i++) {
         const item = spineItems[i];
+        // Skip obvious non-content items by filename hint
+        const href = (item.href || '').toLowerCase();
+        if (/(^|\/)(nav|toc|cover|copyright|colophon|title[-_]?page|imprint)\b/.test(href)) continue;
         let text = '';
         try {
             text = await extractEpubSectionText(book, item);
         } catch (e) {
             console.warn('[coread] failed to load epub section', item.href, e);
         }
-        if (!text) continue;
+        if (!text || text.length < MIN_CHAPTER_CHARS) continue;
+        // Skip if content is mostly metadata patterns (copyright statements)
+        if (looksLikeMetadataPage(text)) continue;
         const titleFromToc = hrefTitle.get(item.href) || hrefTitle.get(item.canonical);
         chapters.push({
             title: titleFromToc || `Chapter ${chapters.length + 1}`,

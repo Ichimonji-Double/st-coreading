@@ -11,15 +11,24 @@ function getContext() {
     return globalThis.SillyTavern?.getContext?.() || null;
 }
 
-// Try several known signatures across ST versions.
-async function callLLM(prompt) {
+// Summaries are a utility task — we bypass the character persona so the
+// character doesn't refuse the "out of character" instruction. Notes (MVP #4)
+// will go through generateQuietPrompt to keep the character in the loop.
+async function callLLM(prompt, systemPrompt = 'You are a concise summarization assistant.') {
     const ctx = getContext();
     if (!ctx) throw new Error('SillyTavern context not available');
 
+    if (typeof ctx.generateRaw === 'function') {
+        try {
+            const result = await ctx.generateRaw({ prompt, systemPrompt });
+            if (typeof result === 'string' && result.trim()) return result.trim();
+        } catch (e) {
+            console.warn('[coread] generateRaw failed, falling back to generateQuietPrompt', e);
+        }
+    }
+
     if (typeof ctx.generateQuietPrompt === 'function') {
-        // Positional signature: (quietPrompt, quietToLoud, skipWIAN, quietImage, quietName, responseLength)
-        // Do NOT override responseLength — extended-thinking presets (Claude) require
-        // max_tokens > thinking.budget_tokens, so trust the user's preset.
+        // Positional: (quietPrompt, quietToLoud, skipWIAN, quietImage, quietName, responseLength)
         try {
             const result = await ctx.generateQuietPrompt(prompt, false, true, null, 'CoReader');
             if (typeof result === 'string' && result.trim()) return result.trim();
@@ -31,15 +40,6 @@ async function callLLM(prompt) {
             } catch (e2) {
                 console.warn('[coread] generateQuietPrompt object failed', e2);
             }
-        }
-    }
-
-    if (typeof ctx.generateRaw === 'function') {
-        try {
-            const result = await ctx.generateRaw({ prompt, systemPrompt: '' });
-            if (typeof result === 'string' && result.trim()) return result.trim();
-        } catch (e) {
-            console.warn('[coread] generateRaw failed', e);
         }
     }
 
