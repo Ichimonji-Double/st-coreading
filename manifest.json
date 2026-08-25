@@ -1,0 +1,17 @@
+{
+  "display_name": "AI Co-Reading",
+  "loading_order": 100,
+  "requires": [],
+  "optional": [],
+  "dependencies": [],
+  "js": "index.js",
+  "css": "style.css",
+  "author": "rubywang0104",
+  "version": "0.1.0",
+  "homePage": "",
+  "auto_update": true,
+  "i18n": {
+    "zh-cn": "i18n/zh-cn.json",
+    "en": "i18n/en.json"
+  }
+}
