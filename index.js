@@ -226,7 +226,7 @@ async function openBookInReader(bookId) {
             asking: t('coread.editor.asking'),
         }),
         onSaveUserNote: async ({ chunk, pIdx, text }) => {
-            await saveUserNote({ book, chunk, pIdx, text });
+            await saveUserNote({ book, chunk, pIdx, text, charId: getCharId() });
         },
         onAskCharacter: async ({ chunk, pIdx }) => {
             const chapter = await db.get('chapters', chunk.chapterId);

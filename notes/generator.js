@@ -182,8 +182,10 @@ export async function askCharacterAboutParagraph({ book, chapter, chunk, pIdx, c
     return note;
 }
 
-// Save a user-written note.
-export async function saveUserNote({ book, chunk, pIdx, text }) {
+// Save a user-written note. Scoped to the current character session so the
+// same-(book, char) filter used by getNotesForChunk / getNotesForBook picks
+// it up. A different character on the same book gets a separate note stream.
+export async function saveUserNote({ book, chunk, pIdx, text, charId }) {
     const clean = String(text || '').trim();
     if (!clean) return null;
     const note = {
@@ -193,7 +195,7 @@ export async function saveUserNote({ book, chunk, pIdx, text }) {
         chunkId: chunk.id,
         paragraphIdx: pIdx,
         author: 'user',
-        charId: null,
+        charId: charId || 'default',
         charName: 'You',
         text: clean,
         ts: Date.now(),
