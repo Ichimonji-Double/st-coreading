@@ -12,6 +12,8 @@
   "coread.settings.pace.short": "Close reading",
   "coread.settings.pace.long": "Fast reading",
   "coread.settings.autoNote": "Let the character write notes on their own",
+  "coread.settings.injectContext": "Inject reading context into chat",
+  "coread.settings.injectContext.hint": "When ON: as long as the Co-Reading Time panel is open and a book is being read, every chat message silently carries the story-so-far summary and the current passage. Closing the panel stops injection.",
   "coread.settings.density": "Note density",
   "coread.settings.density.hint": "How many notes the character leaves per chunk on average",
   "coread.settings.density.sparse": "Sparse",

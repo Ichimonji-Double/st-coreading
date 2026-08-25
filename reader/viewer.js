@@ -266,6 +266,14 @@ export function getCurrentChunkId() {
     return state.chunks[state.currentChunkIdx]?.id;
 }
 
+export function getCurrentChunk() {
+    return state.chunks[state.currentChunkIdx] || null;
+}
+
+export function getOpenBookId() {
+    return state.bookId || null;
+}
+
 export async function jumpToParagraph(chunkId, paragraphIdx) {
     const idx = state.chunks.findIndex(c => c.id === chunkId);
     if (idx < 0) return false;

@@ -12,6 +12,8 @@
   "coread.settings.pace.short": "精读",
   "coread.settings.pace.long": "快读",
   "coread.settings.autoNote": "允许角色主动写笔记",
+  "coread.settings.injectContext": "聊天时注入当前阅读上下文",
+  "coread.settings.injectContext.hint": "开启后：只要「共读时光」面板是打开的、且正在读一本书，主聊天会自动带上「故事至此」和「当前段落」给角色。关闭面板即停止注入。",
   "coread.settings.density": "笔记密度",
   "coread.settings.density.hint": "角色平均每块内容写多少条笔记",
   "coread.settings.density.sparse": "稀疏",

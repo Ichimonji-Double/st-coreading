@@ -1,7 +1,7 @@
 import { db, newId } from './storage/db.js';
 import { parseFile } from './reader/parser.js';
 import { buildChunkRecords } from './reader/chunker.js';
-import { openBook, setReaderStatus, refreshCurrentChunkMeta, refreshContext, refreshParagraphNotes, getCurrentChunkId, jumpToParagraph, currentChunkIdxInBook } from './reader/viewer.js';
+import { openBook, setReaderStatus, refreshCurrentChunkMeta, refreshContext, refreshParagraphNotes, getCurrentChunkId, getCurrentChunk, getOpenBookId, jumpToParagraph, currentChunkIdxInBook } from './reader/viewer.js';
 import { summarizeChunk } from './context/summarizer.js';
 import { readChunkUnified } from './context/unified.js';
 import { generateNotesForChunk, getNotesForBook, askCharacterAboutParagraph, saveUserNote, deleteNote, updateNoteText } from './notes/generator.js';
@@ -13,11 +13,14 @@ const DEFAULTS = {
     paceTokens: 1200,
     autoNote: true,
     noteDensity: 'medium', // 'sparse' | 'medium' | 'dense'
+    injectContextToChat: false,
     drawerWidth: 420,
     drawerHeight: null,   // null = full viewport height
     drawerLeft: null,     // null = docked to right edge
     drawerTop: null,      // null = top
 };
+
+const CHAT_PROMPT_NAME = 'coread-context';
 
 let settings = { ...DEFAULTS };
 let i18nDict = {};
@@ -91,6 +94,13 @@ function buildDrawer() {
                 </label>
             </div>
             <div class="coread-field">
+                <label>
+                    <input type="checkbox" id="coread-inject-context" ${settings.injectContextToChat ? 'checked' : ''}>
+                    ${t('coread.settings.injectContext')}
+                </label>
+                <div class="hint">${t('coread.settings.injectContext.hint')}</div>
+            </div>
+            <div class="coread-field">
                 <label>${t('coread.settings.density')}</label>
                 <div class="coread-segmented" id="coread-density">
                     <button data-val="sparse" ${settings.noteDensity === 'sparse' ? 'class="active"' : ''}>${t('coread.settings.density.sparse')}</button>
@@ -103,7 +113,10 @@ function buildDrawer() {
     `;
     document.body.appendChild(drawer);
 
-    drawer.querySelector('.coread-close').addEventListener('click', () => drawer.classList.remove('open'));
+    drawer.querySelector('.coread-close').addEventListener('click', () => {
+        drawer.classList.remove('open');
+        updateChatInjection();
+    });
 
     drawer.querySelectorAll('nav.coread-tabs button').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -124,6 +137,12 @@ function buildDrawer() {
     drawer.querySelector('#coread-auto-note').addEventListener('change', (e) => {
         settings.autoNote = e.target.checked;
         saveSettings();
+    });
+
+    drawer.querySelector('#coread-inject-context').addEventListener('change', (e) => {
+        settings.injectContextToChat = e.target.checked;
+        saveSettings();
+        updateChatInjection();
     });
 
     drawer.querySelectorAll('#coread-density button').forEach(btn => {
@@ -324,6 +343,50 @@ function switchTab(name) {
         .forEach(p => p.classList.toggle('active', p.dataset.panel === name));
 }
 
+// Update the reading-context injection into the ST chat pipeline.
+// Guardrails: only inject when BOTH the "inject" setting is ON AND the
+// drawer is currently open AND a book is open in the reader. Any of those
+// false → clear the extension prompt so the next chat is context-free.
+async function updateChatInjection() {
+    const ctx = globalThis.SillyTavern?.getContext?.();
+    if (!ctx || typeof ctx.setExtensionPrompt !== 'function') return;
+
+    const drawer = document.getElementById('coread-drawer');
+    const drawerOpen = drawer?.classList.contains('open');
+    const chunk = getCurrentChunk();
+    const bookId = getOpenBookId();
+
+    if (!settings.injectContextToChat || !drawerOpen || !chunk || !bookId) {
+        ctx.setExtensionPrompt(CHAT_PROMPT_NAME, '');
+        return;
+    }
+
+    const book = await db.get('books', bookId);
+    if (!book) {
+        ctx.setExtensionPrompt(CHAT_PROMPT_NAME, '');
+        return;
+    }
+    const session = await db.get('sessions', `${bookId}__${getCharId()}`);
+    const rolling = session?.rollingSummary || '';
+    const chunkText = chunk.paragraphs.join('\n\n');
+    const sample = chunkText.slice(0, 200);
+    const isChinese = /[㐀-鿿]/.test(sample);
+
+    const prompt = isChinese ? [
+        `[共读时光 · 背景上下文 — 我们正在共读《${book.title}》]`,
+        rolling ? `\n【故事至此】\n${rolling}` : '',
+        `\n【用户当前读到的段落】\n${chunkText}`,
+        `\n注：以上内容是用户此刻正在阅读的书本上下文，不是用户直接说的话。用户之后跟你说的话可能会引用或讨论"这段"、"刚才那段"、"这本书"，请以此为参考。`,
+    ].filter(Boolean).join('\n') : [
+        `[Co-Reading Time · background context — we're reading "${book.title}" together]`,
+        rolling ? `\n[Story so far]\n${rolling}` : '',
+        `\n[Passage the user is currently on]\n${chunkText}`,
+        `\nNote: the above is what the user is reading right now, not something the user just said. When the user references "this passage", "just now", or "this book", use the above as context.`,
+    ].filter(Boolean).join('\n');
+
+    ctx.setExtensionPrompt(CHAT_PROMPT_NAME, prompt);
+}
+
 async function openBookInReader(bookId) {
     switchTab('reader');
     const book = await db.get('books', bookId);
@@ -355,9 +418,11 @@ async function openBookInReader(bookId) {
             if (direction === 'forward' && from && !from.summary) {
                 runChunkSummary(book, from).catch(e => console.error('[coread] summary failed', e));
             }
+            updateChatInjection();
         },
     });
     renderNotesPanel(bookId, getCharId());
+    updateChatInjection();
 }
 
 function getCharId() {
@@ -407,6 +472,7 @@ async function runChunkSummary(book, chunk) {
         refreshContext();
         refreshParagraphNotes();
         renderNotesPanel(book.id, charId);
+        updateChatInjection();
     }
 }
 
@@ -613,7 +679,10 @@ function buildToggleButton(drawer) {
     } else {
         btn.innerHTML = `<i class="fa-solid fa-book-open-reader"></i>`;
     }
-    btn.addEventListener('click', () => drawer.classList.toggle('open'));
+    btn.addEventListener('click', () => {
+        drawer.classList.toggle('open');
+        updateChatInjection();
+    });
     target.appendChild(btn);
 }
 
