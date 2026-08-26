@@ -296,8 +296,111 @@
 .coread-reader-body {
     flex: 1;
     overflow-y: auto;
-    line-height: 1.7;
-    padding: 4px 2px 12px;
+    padding: 24px 28px 32px;
+    line-height: 1.95;
+    letter-spacing: 0.015em;
+    font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', SimSun, '宋体', serif;
+    /* Warm paper (light mode) */
+    background: #f4ecd8;
+    background-image:
+        radial-gradient(ellipse at 15% 20%, rgba(190, 160, 110, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 75%, rgba(160, 130, 80, 0.06) 0%, transparent 55%),
+        radial-gradient(circle at 50% 50%, rgba(120, 90, 50, 0.02) 0%, transparent 70%);
+    color: #4a3a26;
+    box-shadow:
+        inset 0 8px 16px -8px rgba(70, 40, 10, 0.12),
+        inset 0 -8px 16px -8px rgba(70, 40, 10, 0.10);
+    border-radius: 3px;
+}
+
+.coread-reader-body .coread-paragraph {
+    text-indent: 2em;
+    margin: 0 0 14px;
+    padding: 4px 6px;
+    border-radius: 3px;
+    text-align: justify;
+    text-justify: inter-ideograph;
+    color: inherit;
+    transition: background 120ms;
+}
+
+.coread-reader-body .coread-paragraph:hover {
+    background: rgba(120, 80, 40, 0.06);
+}
+
+.coread-reader-body .coread-paragraph.has-note {
+    border-left: 3px solid #b08d5a;
+    padding-left: 8px;
+}
+
+/* Dark-mode paper: candlelit sepia */
+@media (prefers-color-scheme: dark) {
+    .coread-reader-body {
+        background: #241d16;
+        background-image:
+            radial-gradient(ellipse at 20% 25%, rgba(180, 140, 90, 0.05) 0%, transparent 55%),
+            radial-gradient(ellipse at 80% 75%, rgba(140, 100, 60, 0.04) 0%, transparent 55%);
+        color: #d4c19a;
+        box-shadow:
+            inset 0 8px 16px -8px rgba(0, 0, 0, 0.5),
+            inset 0 -8px 16px -8px rgba(0, 0, 0, 0.4);
+    }
+    .coread-reader-body .coread-paragraph:hover {
+        background: rgba(220, 180, 120, 0.08);
+    }
+    .coread-reader-body .coread-paragraph.has-note {
+        border-left-color: #a08258;
+    }
+}
+
+/* Also honor an explicit dark theme set by SillyTavern */
+:root[data-theme="dark"] .coread-reader-body,
+body.dark .coread-reader-body {
+    background: #241d16;
+    background-image:
+        radial-gradient(ellipse at 20% 25%, rgba(180, 140, 90, 0.05) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 75%, rgba(140, 100, 60, 0.04) 0%, transparent 55%);
+    color: #d4c19a;
+}
+:root[data-theme="dark"] .coread-reader-body .coread-paragraph.has-note,
+body.dark .coread-reader-body .coread-paragraph.has-note {
+    border-left-color: #a08258;
+}
+
+/* Note cards inside paper body — soften so they don't shout on cream/sepia */
+.coread-reader-body .coread-note-card {
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-size: 12.5px;
+    line-height: 1.55;
+    letter-spacing: 0;
+    text-indent: 0;
+    background: rgba(255, 255, 255, 0.45);
+    border-left-color: #7a6a4a;
+}
+.coread-reader-body .coread-note-card.note-user {
+    background: rgba(255, 220, 160, 0.35);
+    border-left-color: #c47a2a;
+}
+@media (prefers-color-scheme: dark) {
+    .coread-reader-body .coread-note-card {
+        background: rgba(255, 255, 255, 0.04);
+        border-left-color: #a08258;
+    }
+    .coread-reader-body .coread-note-card.note-user {
+        background: rgba(200, 130, 60, 0.12);
+    }
+}
+
+/* Inline editor also blends into paper */
+.coread-reader-body .coread-note-editor {
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: rgba(255, 220, 160, 0.35);
+    border-left-color: #c47a2a;
+}
+@media (prefers-color-scheme: dark) {
+    .coread-reader-body .coread-note-editor {
+        background: rgba(200, 130, 60, 0.12);
+    }
 }
 
 .coread-paragraph {
