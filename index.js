@@ -13,6 +13,7 @@ const DEFAULTS = {
     paceTokens: 1200,
     autoNote: true,
     noteDensity: 'medium', // 'sparse' | 'medium' | 'dense'
+    theme: 'default',      // 'default' (Claude Desktop-style) | 'custom' (follows ST)
     injectContextToChat: false,
     drawerWidth: 420,
     drawerHeight: null,   // null = full viewport height
@@ -55,6 +56,7 @@ function saveSettings() {
 function buildDrawer() {
     const drawer = document.createElement('div');
     drawer.id = 'coread-drawer';
+    drawer.dataset.coreadTheme = settings.theme || 'default';
     drawer.innerHTML = `
         <header class="coread-drag-handle">
             <span>${t('coread.title')}</span>
@@ -109,6 +111,14 @@ function buildDrawer() {
                 </div>
                 <div class="hint">${t('coread.settings.density.hint')}</div>
             </div>
+            <div class="coread-field">
+                <label>${t('coread.settings.theme')}</label>
+                <div class="coread-segmented" id="coread-theme">
+                    <button data-val="default" ${settings.theme === 'default' ? 'class="active"' : ''}>${t('coread.settings.theme.default')}</button>
+                    <button data-val="custom" ${settings.theme === 'custom' ? 'class="active"' : ''}>${t('coread.settings.theme.custom')}</button>
+                </div>
+                <div class="hint">${t('coread.settings.theme.hint')}</div>
+            </div>
         </div>
     `;
     document.body.appendChild(drawer);
@@ -149,6 +159,17 @@ function buildDrawer() {
         btn.addEventListener('click', () => {
             settings.noteDensity = btn.dataset.val;
             drawer.querySelectorAll('#coread-density button').forEach(b => {
+                b.classList.toggle('active', b === btn);
+            });
+            saveSettings();
+        });
+    });
+
+    drawer.querySelectorAll('#coread-theme button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            settings.theme = btn.dataset.val;
+            drawer.dataset.coreadTheme = settings.theme;
+            drawer.querySelectorAll('#coread-theme button').forEach(b => {
                 b.classList.toggle('active', b === btn);
             });
             saveSettings();

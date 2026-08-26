@@ -1,4 +1,63 @@
-/* AI Co-Reading — right-side drawer */
+/* Co-Reading Time — theme-aware drawer.
+   Theme variables live on the drawer element; the two themes (default =
+   Claude Desktop warm palette, custom = follows SillyTavern's own theme
+   via --SmartTheme* vars) redefine them below. All drawer rules read from
+   --cr-* rather than referencing ST vars directly. The reader body (paper
+   aesthetic) is theme-independent and keeps its own palette. */
+
+/* --- Theme: default (Claude Desktop-like) --- */
+#coread-drawer[data-coread-theme="default"] {
+    --cr-bg: #FAF9F5;
+    --cr-panel: #FFFFFF;
+    --cr-text: #2C2A25;
+    --cr-text-muted: rgba(44, 42, 37, 0.60);
+    --cr-border: #E8E4DA;
+    --cr-hover: rgba(44, 42, 37, 0.05);
+    --cr-accent: #C15F3C;
+    --cr-accent-soft: rgba(193, 95, 60, 0.14);
+    --cr-input-bg: #FFFFFF;
+    --cr-input-border: #D5CFC1;
+    --cr-shadow: 0 12px 32px rgba(64, 40, 20, 0.15);
+    --cr-radius: 10px;
+    --cr-radius-sm: 6px;
+    --cr-font: 'Inter', ui-sans-serif, -apple-system, 'SF Pro Text', 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+    #coread-drawer[data-coread-theme="default"] {
+        --cr-bg: #262624;
+        --cr-panel: #2F2D2A;
+        --cr-text: #EAE6DD;
+        --cr-text-muted: rgba(234, 230, 221, 0.60);
+        --cr-border: #3A3733;
+        --cr-hover: var(--cr-hover);
+        --cr-accent: #E88C6E;
+        --cr-accent-soft: rgba(232, 140, 110, 0.15);
+        --cr-input-bg: #34312E;
+        --cr-input-border: #45413C;
+        --cr-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+        color-scheme: dark;
+    }
+}
+
+/* --- Theme: custom (follows SillyTavern) --- */
+#coread-drawer[data-coread-theme="custom"] {
+    --cr-bg: var(--cr-bg);
+    --cr-panel: var(--SmartThemeBlurTintColor, #222);
+    --cr-text: var(--cr-text);
+    --cr-text-muted: rgba(224, 224, 224, 0.55);
+    --cr-border: var(--cr-border);
+    --cr-hover: var(--cr-hover);
+    --cr-accent: var(--cr-accent);
+    --cr-accent-soft: rgba(102, 204, 255, 0.15);
+    --cr-input-bg: rgba(0, 0, 0, 0.2);
+    --cr-input-border: var(--cr-input-border);
+    --cr-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    --cr-radius: 6px;
+    --cr-radius-sm: 4px;
+    --cr-font: inherit;
+}
 
 #coread-toggle-btn {
     display: flex;
@@ -13,14 +72,15 @@
     /* left/top/width/height are set via JS (applyDrawerBounds) */
     min-width: 320px;
     min-height: 260px;
-    background: var(--SmartThemeBlurTintColor, #1a1a1a);
-    color: var(--SmartThemeBodyColor, #e0e0e0);
-    border: 1px solid var(--SmartThemeBorderColor, #333);
-    border-radius: 6px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    background: var(--cr-bg);
+    color: var(--cr-text);
+    border: 1px solid var(--cr-border);
+    border-radius: var(--cr-radius, 6px);
+    box-shadow: var(--cr-shadow, 0 8px 24px rgba(0, 0, 0, 0.4));
     z-index: 3000;
     display: flex;
     flex-direction: column;
+    font-family: var(--cr-font, inherit);
     font-size: 14px;
     opacity: 0;
     pointer-events: none;
@@ -59,7 +119,7 @@
     justify-content: space-between;
     gap: 6px;
     padding: 10px 14px;
-    border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
+    border-bottom: 1px solid var(--cr-border);
     font-weight: 600;
 }
 
@@ -88,7 +148,7 @@
 }
 .coread-dock-btn:hover {
     opacity: 1;
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--cr-hover);
 }
 
 #coread-drawer header .coread-close {
@@ -102,7 +162,7 @@
 
 #coread-drawer nav.coread-tabs {
     display: flex;
-    border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
+    border-bottom: 1px solid var(--cr-border);
 }
 
 #coread-drawer nav.coread-tabs button {
@@ -119,7 +179,7 @@
 
 #coread-drawer nav.coread-tabs button.active {
     opacity: 1;
-    border-bottom-color: var(--SmartThemeQuoteColor, #6cf);
+    border-bottom-color: var(--cr-accent);
 }
 
 #coread-drawer .coread-panel {
@@ -151,16 +211,17 @@
     align-items: center;
     gap: 6px;
     padding: 6px 10px;
-    background: var(--SmartThemeBlurTintColor, #2a2a2a);
-    border: 1px solid var(--SmartThemeBorderColor, #444);
+    background: var(--cr-panel);
+    border: 1px solid var(--cr-input-border);
     color: inherit;
-    border-radius: 4px;
+    border-radius: var(--cr-radius-sm, 4px);
     cursor: pointer;
     font-size: 13px;
+    transition: background 120ms, border-color 120ms;
 }
 
 .coread-btn:hover {
-    background: var(--SmartThemeQuoteColor, #333);
+    background: var(--cr-hover);
 }
 
 .coread-field {
@@ -187,7 +248,7 @@
 /* Segmented control (density picker) */
 .coread-segmented {
     display: flex;
-    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border: 1px solid var(--cr-input-border);
     border-radius: 4px;
     overflow: hidden;
 }
@@ -197,7 +258,7 @@
     padding: 6px 8px;
     background: transparent;
     border: none;
-    border-right: 1px solid var(--SmartThemeBorderColor, #444);
+    border-right: 1px solid var(--cr-input-border);
     color: inherit;
     cursor: pointer;
     font-size: 12px;
@@ -210,12 +271,12 @@
 }
 
 .coread-segmented button:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--cr-hover);
     opacity: 0.9;
 }
 
 .coread-segmented button.active {
-    background: var(--SmartThemeQuoteColor, #3a4a5a);
+    background: var(--cr-accent-soft);
     opacity: 1;
     font-weight: 600;
 }
@@ -227,12 +288,12 @@
     gap: 8px;
     align-items: center;
     padding: 8px 6px;
-    border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
+    border-bottom: 1px solid var(--cr-border);
     cursor: pointer;
 }
 
 .coread-book-row:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--cr-hover);
 }
 
 .coread-book-title {
@@ -276,7 +337,7 @@
     justify-content: space-between;
     align-items: baseline;
     padding-bottom: 6px;
-    border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
+    border-bottom: 1px solid var(--cr-border);
 }
 
 .coread-chapter-title {
@@ -383,7 +444,7 @@ body.dark .coread-reader-body .coread-paragraph.has-note {
 }
 @media (prefers-color-scheme: dark) {
     .coread-reader-body .coread-note-card {
-        background: rgba(255, 255, 255, 0.04);
+        background: var(--cr-hover);
         border-left-color: #a08258;
     }
     .coread-reader-body .coread-note-card.note-user {
@@ -412,11 +473,11 @@ body.dark .coread-reader-body .coread-paragraph.has-note {
 }
 
 .coread-paragraph:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--cr-hover);
 }
 
 .coread-paragraph.has-note {
-    border-left: 3px solid var(--SmartThemeQuoteColor, #6cf);
+    border-left: 3px solid var(--cr-accent);
     padding-left: 8px;
 }
 
@@ -425,7 +486,7 @@ body.dark .coread-reader-body .coread-paragraph.has-note {
     justify-content: space-between;
     align-items: center;
     padding: 6px 0;
-    border-top: 1px solid var(--SmartThemeBorderColor, #333);
+    border-top: 1px solid var(--cr-border);
 }
 
 .coread-progress {
@@ -444,7 +505,7 @@ body.dark .coread-reader-body .coread-paragraph.has-note {
 
 .coread-progress:hover {
     opacity: 1;
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--cr-hover);
 }
 
 .coread-progress-edit {
@@ -456,9 +517,9 @@ body.dark .coread-reader-body .coread-paragraph.has-note {
 .coread-page-input {
     width: 3.5em;
     padding: 1px 4px;
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--cr-hover);
     color: inherit;
-    border: 1px solid var(--SmartThemeBorderColor, #666);
+    border: 1px solid var(--cr-input-border);
     border-radius: 2px;
     font: inherit;
     font-size: 12px;
@@ -474,7 +535,7 @@ body.dark .coread-reader-body .coread-paragraph.has-note {
 
 .coread-page-input:focus {
     outline: none;
-    border-color: var(--SmartThemeQuoteColor, #6cf);
+    border-color: var(--cr-accent);
 }
 
 .coread-page-input-error {
@@ -508,8 +569,8 @@ body.dark .coread-reader-body .coread-paragraph.has-note {
 
 /* AI context strip */
 .coread-ctx {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--SmartThemeBorderColor, #333);
+    background: var(--cr-hover);
+    border: 1px solid var(--cr-border);
     border-radius: 4px;
     padding: 4px 8px;
     font-size: 12px;
@@ -553,7 +614,7 @@ body.dark .coread-reader-body .coread-paragraph.has-note {
 .coread-note-card {
     margin: -6px 0 14px 12px;
     padding: 8px 10px;
-    border-left: 3px solid var(--SmartThemeQuoteColor, #6cf);
+    border-left: 3px solid var(--cr-accent);
     background: rgba(102, 204, 255, 0.06);
     border-radius: 0 4px 4px 0;
     font-size: 13px;
@@ -584,7 +645,7 @@ body.dark .coread-reader-body .coread-paragraph.has-note {
     font-family: ui-monospace, 'SF Mono', Menlo, monospace;
     padding: 1px 5px;
     border-radius: 3px;
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--cr-hover);
     cursor: pointer;
 }
 
@@ -616,7 +677,7 @@ body.dark .coread-reader-body .coread-paragraph.has-note {
 
 .coread-note-btn:hover {
     opacity: 1;
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--cr-hover);
 }
 
 .coread-note-btn.coread-note-del:hover {
@@ -626,9 +687,9 @@ body.dark .coread-reader-body .coread-paragraph.has-note {
 .coread-note-inline-edit textarea {
     width: 100%;
     box-sizing: border-box;
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--cr-input-bg);
     color: inherit;
-    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border: 1px solid var(--cr-input-border);
     border-radius: 3px;
     padding: 6px 8px;
     font: inherit;
@@ -648,7 +709,7 @@ body.dark .coread-reader-body .coread-paragraph.has-note {
 }
 
 .coread-note-item:hover {
-    background: rgba(255, 255, 255, 0.06) !important;
+    background: var(--cr-hover) !important;
 }
 
 .coread-note-item:hover .coread-note-anchor {
@@ -675,7 +736,7 @@ body.dark .coread-reader-body .coread-paragraph.has-note {
     gap: 6px;
     padding: 6px 0 10px;
     margin-bottom: 8px;
-    border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
+    border-bottom: 1px solid var(--cr-border);
 }
 
 .coread-export-label {
@@ -695,15 +756,15 @@ body.dark .coread-reader-body .coread-paragraph.has-note {
     letter-spacing: 0.5px;
     opacity: 0.6;
     padding: 4px 0;
-    border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
+    border-bottom: 1px solid var(--cr-border);
     margin-bottom: 8px;
 }
 
 .coread-note-item {
     padding: 6px 8px;
     margin-bottom: 6px;
-    background: rgba(255, 255, 255, 0.03);
-    border-left: 3px solid var(--SmartThemeQuoteColor, #6cf);
+    background: var(--cr-hover);
+    border-left: 3px solid var(--cr-accent);
     border-radius: 0 3px 3px 0;
     font-size: 13px;
     line-height: 1.5;
@@ -721,9 +782,9 @@ body.dark .coread-reader-body .coread-paragraph.has-note {
 .coread-note-editor textarea {
     width: 100%;
     box-sizing: border-box;
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--cr-input-bg);
     color: inherit;
-    border: 1px solid var(--SmartThemeBorderColor, #444);
+    border: 1px solid var(--cr-input-border);
     border-radius: 3px;
     padding: 6px 8px;
     font: inherit;
@@ -745,8 +806,9 @@ body.dark .coread-reader-body .coread-paragraph.has-note {
 }
 
 .coread-btn-primary {
-    background: #f0a848 !important;
-    color: #1a1a1a !important;
+    background: var(--cr-accent) !important;
+    color: #fff !important;
+    border-color: var(--cr-accent) !important;
     font-weight: 600;
 }
 
