@@ -8,7 +8,8 @@ let state = {
     bookId: null,
     chapters: [],
     chunks: [],
-    currentChunkIdx: 0, // index into flat `chunks` array
+    currentChunkIdx: 0,   // index into flat `chunks` array
+    maxReadChunkIdx: 0,   // furthest chunk this (book, char) session has reached
 };
 
 let callbacks = {};
@@ -27,7 +28,7 @@ export async function openBook(bookId, cbs = {}) {
     ]);
     chapters.sort((a, b) => a.idx - b.idx);
     chunks.sort((a, b) => a.idx - b.idx);
-    state = { bookId, chapters, chunks, currentChunkIdx: 0 };
+    state = { bookId, chapters, chunks, currentChunkIdx: 0, maxReadChunkIdx: 0 };
 
     // Resume from session if any
     const sessions = await db.byIndex('sessions', 'bookId', bookId);
@@ -37,6 +38,15 @@ export async function openBook(bookId, cbs = {}) {
         const idx = chunks.findIndex(c => c.id === session.currentChunkId);
         if (idx >= 0) state.currentChunkIdx = idx;
     }
+    // Restore max-read. If missing (older session), infer from current position.
+    // Also fall back to the highest chunk that has a stored summary, since
+    // summaries are only created on forward navigation past a chunk.
+    const inferredMax = Math.max(
+        session?.maxReadChunkIdx ?? 0,
+        state.currentChunkIdx,
+        chunks.reduce((m, c, i) => (c.summary ? Math.max(m, i) : m), 0),
+    );
+    state.maxReadChunkIdx = Math.min(inferredMax, chunks.length - 1);
     render();
 }
 
@@ -56,6 +66,7 @@ async function saveProgress() {
         charId: activeCharId,
         currentChunkId: state.chunks[state.currentChunkIdx]?.id,
         rollingSummary: existing?.rollingSummary || '',
+        maxReadChunkIdx: state.maxReadChunkIdx,
         updatedAt: Date.now(),
     });
 }
@@ -72,6 +83,7 @@ function render() {
     const chapter = currentChapter();
 
     host.innerHTML = '';
+    const jumpHint = callbacks.getLabels?.()?.jumpHint || 'Click to jump to a page you\'ve read';
     const wrap = el(`
         <div class="coread-reader">
             <div class="coread-reader-head">
@@ -85,7 +97,11 @@ function render() {
             <div class="coread-reader-body"></div>
             <div class="coread-reader-nav">
                 <button class="coread-btn" data-act="prev">◀</button>
-                <span class="coread-progress"></span>
+                <span class="coread-progress" title="${jumpHint}">
+                    <span class="coread-progress-current"></span>
+                    <span class="coread-progress-sep"> / </span>
+                    <span class="coread-progress-total"></span>
+                </span>
                 <button class="coread-btn" data-act="next">▶</button>
             </div>
         </div>
@@ -93,8 +109,8 @@ function render() {
     wrap.querySelector('.coread-chapter-title').textContent = chapter?.title || '';
     const metaTxt = chunk.summary ? '✓ summarized' : `~${chunk.tokenEst} tok`;
     wrap.querySelector('.coread-chunk-meta').textContent = metaTxt;
-    wrap.querySelector('.coread-progress').textContent =
-        `${state.currentChunkIdx + 1} / ${state.chunks.length}`;
+    wrap.querySelector('.coread-progress-current').textContent = String(state.currentChunkIdx + 1);
+    wrap.querySelector('.coread-progress-total').textContent = String(state.chunks.length);
 
     const body = wrap.querySelector('.coread-reader-body');
     chunk.paragraphs.forEach((p, i) => {
@@ -112,10 +128,102 @@ function render() {
 
     wrap.querySelector('[data-act="prev"]').addEventListener('click', () => turn(-1));
     wrap.querySelector('[data-act="next"]').addEventListener('click', () => turn(1));
+    wrap.querySelector('.coread-progress').addEventListener('click', openPageJump);
 
     host.appendChild(wrap);
     saveProgress();
     renderContext();
+}
+
+function openPageJump() {
+    const progress = document.querySelector('#coread-drawer .coread-progress');
+    if (!progress || progress.querySelector('input')) return;
+    const total = state.chunks.length;
+    const maxAllowed = state.maxReadChunkIdx + 1;
+    const current = state.currentChunkIdx + 1;
+    const labels = callbacks.getLabels?.() || {};
+
+    const wrapper = document.createElement('span');
+    wrapper.className = 'coread-progress-edit';
+    wrapper.innerHTML = `
+        <input type="number" class="coread-page-input" min="1" max="${maxAllowed}" value="${current}" />
+        <span class="coread-progress-sep"> / ${total}</span>
+    `;
+    progress.replaceChildren(wrapper);
+    const input = wrapper.querySelector('input');
+    input.focus();
+    input.select();
+
+    const revert = () => {
+        progress.innerHTML = `
+            <span class="coread-progress-current">${state.currentChunkIdx + 1}</span>
+            <span class="coread-progress-sep"> / </span>
+            <span class="coread-progress-total">${total}</span>
+        `;
+    };
+
+    const commit = () => {
+        const target = Number(input.value);
+        if (!Number.isInteger(target) || target < 1 || target > total) {
+            flashInvalid(input, (labels.jumpInvalid || 'Enter a number between 1 and {max}').replace('{max}', total));
+            return;
+        }
+        if (target > maxAllowed) {
+            flashInvalid(input, (labels.jumpTooFar || 'You can only jump back (max: page {max})').replace('{max}', maxAllowed));
+            return;
+        }
+        const newIdx = target - 1;
+        if (newIdx === state.currentChunkIdx) {
+            revert();
+            return;
+        }
+        jumpToChunkIdx(newIdx);
+    };
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        if (e.key === 'Escape') { e.preventDefault(); revert(); }
+    });
+    input.addEventListener('blur', () => {
+        // Small delay so click on flash message doesn't blur-then-revert
+        setTimeout(() => {
+            if (progress.querySelector('input') === input) revert();
+        }, 100);
+    });
+}
+
+function flashInvalid(input, message) {
+    input.classList.add('coread-page-input-error');
+    let hint = document.querySelector('#coread-drawer .coread-page-hint');
+    if (!hint) {
+        hint = document.createElement('div');
+        hint.className = 'coread-page-hint';
+        input.closest('.coread-progress-edit')?.appendChild(hint);
+    }
+    hint.textContent = message;
+    hint.hidden = false;
+    clearTimeout(flashInvalid._t);
+    flashInvalid._t = setTimeout(() => {
+        input.classList.remove('coread-page-input-error');
+        if (hint) hint.hidden = true;
+    }, 2400);
+    input.focus();
+    input.select();
+}
+
+function jumpToChunkIdx(newIdx) {
+    if (newIdx < 0 || newIdx >= state.chunks.length) return;
+    if (newIdx > state.maxReadChunkIdx) return;
+    state.currentChunkIdx = newIdx;
+    render();
+    // Notify orchestrator so it can refresh injection / notes panels.
+    // Backward-only jumps by definition don't need summarization, so we send
+    // direction 'backward' regardless of relative position.
+    callbacks.onChunkChange?.({
+        from: null,
+        to: state.chunks[newIdx],
+        direction: 'backward',
+    });
 }
 
 async function renderContext() {
@@ -388,6 +496,7 @@ function turn(delta) {
     if (next < 0 || next >= state.chunks.length) return;
     const fromChunk = state.chunks[state.currentChunkIdx];
     state.currentChunkIdx = next;
+    if (next > state.maxReadChunkIdx) state.maxReadChunkIdx = next;
     render();
     callbacks.onChunkChange?.({
         from: fromChunk,

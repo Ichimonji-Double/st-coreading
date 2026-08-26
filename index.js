@@ -447,6 +447,9 @@ async function openBookInReader(bookId) {
             cancel: t('coread.action.cancel'),
             asking: t('coread.editor.asking'),
             confirmDelete: t('coread.confirm.deleteNote'),
+            jumpHint: t('coread.jump.hint'),
+            jumpTooFar: t('coread.jump.tooFar'),
+            jumpInvalid: t('coread.jump.invalid'),
         }),
         onSaveUserNote: async ({ chunk, pIdx, text }) => {
             await saveUserNote({ book, chunk, pIdx, text, charId: getCharId() });
