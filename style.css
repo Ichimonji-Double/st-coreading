@@ -31,7 +31,7 @@
         --cr-text: #EAE6DD;
         --cr-text-muted: rgba(234, 230, 221, 0.60);
         --cr-border: #3A3733;
-        --cr-hover: var(--cr-hover);
+        --cr-hover: rgba(255, 255, 255, 0.05);
         --cr-accent: #E88C6E;
         --cr-accent-soft: rgba(232, 140, 110, 0.15);
         --cr-input-bg: #34312E;
@@ -41,22 +41,29 @@
     }
 }
 
-/* --- Theme: custom (follows SillyTavern) --- */
+/* --- Theme: custom (follows SillyTavern) ---
+   ST's --SmartThemeBlurTintColor is intentionally semi-transparent — it's
+   meant to sit on top of backdrop-filter: blur() to produce the frosted
+   glass look you see on ST's own panels. We apply the same blur here so
+   the drawer reads as a real panel instead of a see-through window. */
 #coread-drawer[data-coread-theme="custom"] {
-    --cr-bg: var(--cr-bg);
+    --cr-bg: var(--SmartThemeBlurTintColor, #1a1a1a);
     --cr-panel: var(--SmartThemeBlurTintColor, #222);
-    --cr-text: var(--cr-text);
+    --cr-text: var(--SmartThemeBodyColor, #e0e0e0);
     --cr-text-muted: rgba(224, 224, 224, 0.55);
-    --cr-border: var(--cr-border);
-    --cr-hover: var(--cr-hover);
-    --cr-accent: var(--cr-accent);
+    --cr-border: var(--SmartThemeBorderColor, #333);
+    --cr-hover: rgba(127, 127, 127, 0.12);
+    --cr-accent: var(--SmartThemeQuoteColor, #6cf);
     --cr-accent-soft: rgba(102, 204, 255, 0.15);
-    --cr-input-bg: rgba(0, 0, 0, 0.2);
-    --cr-input-border: var(--cr-input-border);
+    --cr-input-bg: rgba(127, 127, 127, 0.10);
+    --cr-input-border: var(--SmartThemeBorderColor, #444);
     --cr-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     --cr-radius: 6px;
     --cr-radius-sm: 4px;
     --cr-font: inherit;
+    /* Frosted-glass so translucent tint reads as a real panel, matching ST */
+    backdrop-filter: blur(var(--SmartThemeBlurStrength, 10px));
+    -webkit-backdrop-filter: blur(var(--SmartThemeBlurStrength, 10px));
 }
 
 #coread-toggle-btn {
