@@ -15,6 +15,9 @@ const DEFAULTS = {
     noteDensity: 'medium', // 'sparse' | 'medium' | 'dense'
     theme: 'default',      // 'default' (Claude Desktop-style) | 'custom' (follows ST)
     injectContextToChat: false,
+    showFab: true,         // draggable floating button, on by default
+    fabLeft: null,         // null = auto-positioned bottom-right
+    fabTop: null,
     drawerWidth: 420,
     drawerHeight: null,   // null = full viewport height
     drawerLeft: null,     // null = docked to right edge
@@ -119,12 +122,20 @@ function buildDrawer() {
                 </div>
                 <div class="hint">${t('coread.settings.theme.hint')}</div>
             </div>
+            <div class="coread-field">
+                <label>
+                    <input type="checkbox" id="coread-show-fab" ${settings.showFab ? 'checked' : ''}>
+                    ${t('coread.settings.showFab')}
+                </label>
+                <div class="hint">${t('coread.settings.showFab.hint')}</div>
+            </div>
         </div>
     `;
     document.body.appendChild(drawer);
 
     drawer.querySelector('.coread-close').addEventListener('click', () => {
         drawer.classList.remove('open');
+        updateFabActiveState(drawer);
         updateChatInjection();
     });
 
@@ -174,6 +185,13 @@ function buildDrawer() {
             });
             saveSettings();
         });
+    });
+
+    drawer.querySelector('#coread-show-fab').addEventListener('change', (e) => {
+        settings.showFab = e.target.checked;
+        saveSettings();
+        if (settings.showFab) buildFab(drawer);
+        else destroyFab();
     });
 
     drawer.querySelector('#coread-import-btn').addEventListener('click', () => handleImport());
@@ -731,6 +749,122 @@ function showStatus(text) {
     return box;
 }
 
+// --- Floating action button (draggable, cross-platform quick entry) ---
+const FAB_ID = 'coread-fab';
+const FAB_SIZE = 48;
+const FAB_MARGIN = 20;
+
+function buildFab(drawer) {
+    destroyFab();
+    const fab = document.createElement('button');
+    fab.id = FAB_ID;
+    fab.type = 'button';
+    fab.title = t('coread.toggle');
+    fab.setAttribute('aria-label', t('coread.toggle'));
+    fab.innerHTML = `
+        <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <!-- Book cover -->
+            <rect x="6" y="5" width="20" height="22" rx="2" class="coread-fab-cover"/>
+            <!-- Spine highlight -->
+            <rect x="6" y="5" width="2.4" height="22" rx="1" class="coread-fab-spine"/>
+            <!-- Page surface -->
+            <rect x="9.5" y="7.5" width="14" height="17" class="coread-fab-page"/>
+            <!-- Text lines -->
+            <line x1="11.5" y1="11" x2="21.5" y2="11" class="coread-fab-line"/>
+            <line x1="11.5" y1="14" x2="21.5" y2="14" class="coread-fab-line"/>
+            <line x1="11.5" y1="17" x2="19" y2="17" class="coread-fab-line"/>
+            <!-- Bookmark ribbon: sits at top of book, hangs down with V notch -->
+            <path d="M18.5 5 L22.5 5 L22.5 15.5 L20.5 13.8 L18.5 15.5 Z" class="coread-fab-ribbon"/>
+        </svg>
+    `;
+    positionFab(fab);
+    document.body.appendChild(fab);
+
+    // Click vs drag disambiguation. Consider it a click only if pointer
+    // moved < 5px between down and up, otherwise it's a drag.
+    let startX = 0, startY = 0, origLeft = 0, origTop = 0, dragging = false, moved = false;
+
+    const onPointerDown = (e) => {
+        const pt = 'touches' in e ? e.touches[0] : e;
+        startX = pt.clientX;
+        startY = pt.clientY;
+        const r = fab.getBoundingClientRect();
+        origLeft = r.left;
+        origTop = r.top;
+        dragging = true;
+        moved = false;
+        fab.classList.add('coread-fab-dragging');
+        e.preventDefault();
+    };
+    const onPointerMove = (e) => {
+        if (!dragging) return;
+        const pt = 'touches' in e ? e.touches[0] : e;
+        const dx = pt.clientX - startX;
+        const dy = pt.clientY - startY;
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) moved = true;
+        const newLeft = Math.max(0, Math.min(window.innerWidth - FAB_SIZE, origLeft + dx));
+        const newTop = Math.max(0, Math.min(window.innerHeight - FAB_SIZE, origTop + dy));
+        fab.style.left = newLeft + 'px';
+        fab.style.top = newTop + 'px';
+        fab.style.right = 'auto';
+        fab.style.bottom = 'auto';
+    };
+    const onPointerUp = () => {
+        if (!dragging) return;
+        dragging = false;
+        fab.classList.remove('coread-fab-dragging');
+        if (moved) {
+            settings.fabLeft = parseInt(fab.style.left, 10);
+            settings.fabTop = parseInt(fab.style.top, 10);
+            saveSettings();
+        } else {
+            drawer.classList.toggle('open');
+            updateFabActiveState(drawer);
+            updateChatInjection();
+        }
+    };
+
+    fab.addEventListener('mousedown', onPointerDown);
+    fab.addEventListener('touchstart', onPointerDown, { passive: false });
+    document.addEventListener('mousemove', onPointerMove);
+    document.addEventListener('touchmove', onPointerMove, { passive: false });
+    document.addEventListener('mouseup', onPointerUp);
+    document.addEventListener('touchend', onPointerUp);
+
+    updateFabActiveState(drawer);
+    // Re-clamp on window resize
+    window.addEventListener('resize', () => positionFab(fab));
+    return fab;
+}
+
+function positionFab(fab) {
+    if (settings.fabLeft != null && settings.fabTop != null) {
+        const left = Math.max(0, Math.min(window.innerWidth - FAB_SIZE, settings.fabLeft));
+        const top = Math.max(0, Math.min(window.innerHeight - FAB_SIZE, settings.fabTop));
+        fab.style.left = left + 'px';
+        fab.style.top = top + 'px';
+        fab.style.right = 'auto';
+        fab.style.bottom = 'auto';
+    } else {
+        // Default: bottom-right corner
+        fab.style.left = 'auto';
+        fab.style.top = 'auto';
+        fab.style.right = FAB_MARGIN + 'px';
+        fab.style.bottom = FAB_MARGIN + 'px';
+    }
+}
+
+function updateFabActiveState(drawer) {
+    const fab = document.getElementById(FAB_ID);
+    if (!fab || !drawer) return;
+    fab.classList.toggle('coread-fab-active', drawer.classList.contains('open'));
+}
+
+function destroyFab() {
+    const existing = document.getElementById(FAB_ID);
+    if (existing) existing.remove();
+}
+
 function buildToggleButton(drawer) {
     const target = document.getElementById('extensionsMenu')
         || document.getElementById('top-bar')
@@ -753,6 +887,7 @@ function buildToggleButton(drawer) {
     }
     btn.addEventListener('click', () => {
         drawer.classList.toggle('open');
+        updateFabActiveState(drawer);
         updateChatInjection();
     });
     target.appendChild(btn);
@@ -764,6 +899,7 @@ async function init() {
     await db.all('books').catch(e => console.error('[coread] db init failed', e));
     const drawer = buildDrawer();
     buildToggleButton(drawer);
+    if (settings.showFab) buildFab(drawer);
     console.log('[coread] extension loaded');
 }
 

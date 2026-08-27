@@ -74,6 +74,85 @@
     user-select: none;
 }
 
+/* --- Floating action button (FAB) ---
+   Cross-platform draggable entry point. Warm cream circle with a book +
+   bookmark ribbon inside, kept consistent across themes so it always looks
+   like the same widget no matter what colors ST is using. */
+#coread-fab {
+    position: fixed;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border: 1px solid rgba(120, 90, 50, 0.25);
+    border-radius: 50%;
+    background: #FAF9F5;
+    box-shadow: 0 4px 14px rgba(70, 40, 10, 0.25), 0 1px 3px rgba(0, 0, 0, 0.15);
+    cursor: grab;
+    z-index: 3100; /* above the drawer so it's tappable while drawer is open */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: none;
+    opacity: 0.92;
+}
+
+#coread-fab:hover {
+    transform: scale(1.06);
+    box-shadow: 0 6px 18px rgba(70, 40, 10, 0.32), 0 2px 4px rgba(0, 0, 0, 0.2);
+    opacity: 1;
+}
+
+#coread-fab.coread-fab-dragging {
+    cursor: grabbing;
+    transform: scale(0.94);
+    opacity: 0.75;
+    transition: none;
+}
+
+#coread-fab.coread-fab-active {
+    box-shadow:
+        0 0 0 3px rgba(193, 95, 60, 0.35),
+        0 4px 14px rgba(70, 40, 10, 0.25);
+}
+
+#coread-fab svg {
+    width: 30px;
+    height: 30px;
+    display: block;
+    pointer-events: none;
+}
+
+/* Book & ribbon color parts */
+.coread-fab-cover  { fill: #C15F3C; }
+.coread-fab-spine  { fill: #8E4429; }
+.coread-fab-page   { fill: #FAF3E1; }
+.coread-fab-line   { stroke: #8B7355; stroke-width: 1; stroke-linecap: round; opacity: 0.7; }
+.coread-fab-ribbon { fill: #8B2635; }
+
+/* Dark-mode FAB: warmer dark circle, slightly softer inner colors */
+@media (prefers-color-scheme: dark) {
+    #coread-fab {
+        background: #2F2B27;
+        border-color: rgba(200, 160, 110, 0.25);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+    #coread-fab:hover {
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55), 0 2px 4px rgba(0, 0, 0, 0.35);
+    }
+    #coread-fab.coread-fab-active {
+        box-shadow:
+            0 0 0 3px rgba(232, 140, 110, 0.4),
+            0 4px 14px rgba(0, 0, 0, 0.5);
+    }
+    .coread-fab-cover  { fill: #D97757; }
+    .coread-fab-spine  { fill: #A85838; }
+    .coread-fab-page   { fill: #EFE4C9; }
+    .coread-fab-ribbon { fill: #A83243; }
+}
+
 #coread-drawer {
     position: fixed;
     /* left/top/width/height are set via JS (applyDrawerBounds) */

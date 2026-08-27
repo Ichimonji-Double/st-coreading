@@ -23,6 +23,8 @@
   "coread.settings.theme.hint": "默认主题采用 Claude 桌面风格暖色调；自定义主题跟随 SillyTavern 当前主题。阅读器正文区永远保持纸书风。",
   "coread.settings.theme.default": "默认",
   "coread.settings.theme.custom": "自定义",
+  "coread.settings.showFab": "显示悬浮按钮",
+  "coread.settings.showFab.hint": "在屏幕上显示一个可拖拽的📖悬浮按钮，方便快速打开/关闭共读时光（移动端强烈建议开启）。",
   "coread.settings.language": "界面语言",
   "coread.empty.library": "书库还是空的，导入第一本书吧",
   "coread.empty.reader": "从书库选一本书开始共读",
