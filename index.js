@@ -14,6 +14,7 @@ const DEFAULTS = {
     autoNote: true,
     noteDensity: 'medium', // 'sparse' | 'medium' | 'dense'
     theme: 'default',      // 'default' (Claude Desktop-style) | 'custom' (follows ST)
+    uiLanguage: null,      // null = auto-detect from ST; otherwise 'zh-cn' | 'en'
     injectContextToChat: false,
     showFab: true,         // draggable floating button, on by default
     fabLeft: null,         // null = auto-positioned bottom-right
@@ -29,8 +30,15 @@ const CHAT_PROMPT_NAME = 'coread-context';
 let settings = { ...DEFAULTS };
 let i18nDict = {};
 
+function detectLanguage() {
+    if (settings.uiLanguage === 'zh-cn' || settings.uiLanguage === 'en') {
+        return settings.uiLanguage;
+    }
+    return document.documentElement.lang?.startsWith('zh') ? 'zh-cn' : 'en';
+}
+
 async function loadI18n() {
-    const lang = document.documentElement.lang?.startsWith('zh') ? 'zh-cn' : 'en';
+    const lang = detectLanguage();
     try {
         const url = new URL(`i18n/${lang}.json`, import.meta.url);
         const res = await fetch(url);
@@ -129,6 +137,14 @@ function buildDrawer() {
                 </label>
                 <div class="hint">${t('coread.settings.showFab.hint')}</div>
             </div>
+            <div class="coread-field">
+                <label>${t('coread.settings.language')}</label>
+                <div class="coread-segmented" id="coread-language">
+                    <button data-val="zh-cn" ${detectLanguage() === 'zh-cn' ? 'class="active"' : ''}>简体中文</button>
+                    <button data-val="en" ${detectLanguage() === 'en' ? 'class="active"' : ''}>English</button>
+                </div>
+                <div class="hint">${t('coread.settings.language.hint')}</div>
+            </div>
         </div>
     `;
     document.body.appendChild(drawer);
@@ -192,6 +208,15 @@ function buildDrawer() {
         saveSettings();
         if (settings.showFab) buildFab(drawer);
         else destroyFab();
+    });
+
+    drawer.querySelectorAll('#coread-language button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (btn.dataset.val === detectLanguage()) return; // already active
+            settings.uiLanguage = btn.dataset.val;
+            saveSettings();
+            location.reload();
+        });
     });
 
     drawer.querySelector('#coread-import-btn').addEventListener('click', () => handleImport());

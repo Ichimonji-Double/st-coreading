@@ -26,6 +26,7 @@
   "coread.settings.showFab": "Show floating button",
   "coread.settings.showFab.hint": "A draggable 📖 button anywhere on screen for one-tap open/close (highly recommended on mobile).",
   "coread.settings.language": "UI language",
+  "coread.settings.language.hint": "The page will reload after you switch.",
   "coread.empty.library": "Your library is empty. Import a book to get started.",
   "coread.empty.reader": "Pick a book from the library to start co-reading.",
   "coread.empty.notes": "No notes yet.",

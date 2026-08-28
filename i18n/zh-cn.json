@@ -26,6 +26,7 @@
   "coread.settings.showFab": "显示悬浮按钮",
   "coread.settings.showFab.hint": "在屏幕上显示一个可拖拽的📖悬浮按钮，方便快速打开/关闭共读时光（移动端强烈建议开启）。",
   "coread.settings.language": "界面语言",
+  "coread.settings.language.hint": "手动切换后会自动刷新页面。",
   "coread.empty.library": "书库还是空的，导入第一本书吧",
   "coread.empty.reader": "从书库选一本书开始共读",
   "coread.empty.notes": "还没有笔记",
