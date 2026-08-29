@@ -242,8 +242,25 @@ function buildDrawer() {
 
 const MIN_W = 320;
 const MIN_H = 260;
+const MOBILE_BREAKPOINT = 768;
+
+function isMobileViewport() {
+    return window.innerWidth < MOBILE_BREAKPOINT;
+}
 
 function applyDrawerBounds(drawer) {
+    if (isMobileViewport()) {
+        // Fullscreen mode — actual positioning is CSS-driven so it can use
+        // env(safe-area-inset-*) for iOS notches / Android nav bars. We just
+        // toggle the class and clear any inline PC positioning.
+        drawer.classList.add('coread-mobile-fullscreen');
+        drawer.style.width = '';
+        drawer.style.height = '';
+        drawer.style.left = '';
+        drawer.style.top = '';
+        return;
+    }
+    drawer.classList.remove('coread-mobile-fullscreen');
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     let w = settings.drawerWidth || 420;
@@ -265,6 +282,7 @@ function initDrag(drawer) {
     let start = null;
     header.addEventListener('mousedown', (e) => {
         if (e.target.closest('.coread-close')) return;
+        if (isMobileViewport()) return; // fullscreen on mobile, no dragging
         const r = drawer.getBoundingClientRect();
         start = { x: e.clientX, y: e.clientY, left: r.left, top: r.top, w: r.width, h: r.height };
         drawer.classList.add('coread-dragging');
@@ -293,6 +311,7 @@ function initResize(drawer) {
     let start = null;
     drawer.querySelectorAll('.coread-resize-handle').forEach(handle => {
         handle.addEventListener('mousedown', (e) => {
+            if (isMobileViewport()) return; // fullscreen on mobile, no resize
             const r = drawer.getBoundingClientRect();
             start = {
                 x: e.clientX, y: e.clientY,

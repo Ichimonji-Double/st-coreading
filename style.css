@@ -185,6 +185,41 @@
     transition: none;
 }
 
+/* Mobile: fullscreen with safe-area padding so headers/close buttons
+   don't hide under iOS notches, Android nav bars, or ST's own top bar.
+   env(safe-area-inset-*) resolves to 0 on desktop / non-notch devices. */
+#coread-drawer.coread-mobile-fullscreen {
+    top: env(safe-area-inset-top, 0px) !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    /* Bump above ST's own top bar so nothing overlaps the drawer header */
+    z-index: 10000;
+}
+
+#coread-drawer.coread-mobile-fullscreen header.coread-drag-handle {
+    cursor: default;
+}
+
+/* Hide desktop-only affordances in fullscreen mode */
+#coread-drawer.coread-mobile-fullscreen .coread-resize-handle,
+#coread-drawer.coread-mobile-fullscreen .coread-dock-btn {
+    display: none;
+}
+
+/* Bigger tap targets in the header on mobile — X was too small */
+#coread-drawer.coread-mobile-fullscreen header .coread-close {
+    font-size: 22px;
+    padding: 6px 10px;
+    line-height: 1;
+}
+#coread-drawer.coread-mobile-fullscreen header {
+    padding: 12px 14px;
+}
+
 /* Resize handles — 8 around the perimeter */
 .coread-resize-handle {
     position: absolute;
