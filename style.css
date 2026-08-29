@@ -88,7 +88,10 @@
     background: #FAF9F5;
     box-shadow: 0 4px 14px rgba(70, 40, 10, 0.25), 0 1px 3px rgba(0, 0, 0, 0.15);
     cursor: grab;
-    z-index: 3100; /* above the drawer so it's tappable while drawer is open */
+    /* Above ST's mobile bottom bar AND our own fullscreen drawer (10000).
+       Some mobile ST layouts put fixed elements at ~3000-5000, which was
+       covering the FAB until user rotated the device. */
+    z-index: 10001;
     display: flex;
     align-items: center;
     justify-content: center;

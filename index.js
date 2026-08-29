@@ -890,12 +890,19 @@ function positionFab(fab) {
         fab.style.right = 'auto';
         fab.style.bottom = 'auto';
     } else {
-        // Default: bottom-right corner
+        // Default: bottom-right corner. max(FAB_MARGIN, safe-area-inset-*)
+        // keeps the FAB clear of iOS home indicators / Android nav bars.
         fab.style.left = 'auto';
         fab.style.top = 'auto';
-        fab.style.right = FAB_MARGIN + 'px';
-        fab.style.bottom = FAB_MARGIN + 'px';
+        fab.style.right = `max(${FAB_MARGIN}px, env(safe-area-inset-right, ${FAB_MARGIN}px))`;
+        fab.style.bottom = `max(${FAB_MARGIN}px, env(safe-area-inset-bottom, ${FAB_MARGIN}px))`;
     }
+    console.log('[coread] FAB positioned', {
+        left: fab.style.left, top: fab.style.top,
+        right: fab.style.right, bottom: fab.style.bottom,
+        viewport: `${window.innerWidth}x${window.innerHeight}`,
+        savedLeft: settings.fabLeft, savedTop: settings.fabTop,
+    });
 }
 
 function updateFabActiveState(drawer) {
