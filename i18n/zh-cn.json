@@ -8,7 +8,7 @@
   "coread.notes": "读书笔记",
   "coread.settings": "设置",
   "coread.settings.pace": "阅读节奏",
-  "coread.settings.pace.hint": "每块字数越少，AI 摘要和笔记越密集",
+  "coread.settings.pace.hint": "每块字数越少，AI 摘要和笔记越密集。仅对之后导入的新书生效，已导入的书分块不会变。请先设置阅读节奏，再导入书本。",
   "coread.settings.pace.short": "精读",
   "coread.settings.pace.long": "快读",
   "coread.settings.autoNote": "允许角色主动写笔记",

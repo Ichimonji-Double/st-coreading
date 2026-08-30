@@ -8,7 +8,7 @@
   "coread.notes": "Notes",
   "coread.settings": "Settings",
   "coread.settings.pace": "Reading pace",
-  "coread.settings.pace.hint": "Smaller chunks mean more frequent AI summaries and notes",
+  "coread.settings.pace.hint": "Smaller chunks mean more frequent AI summaries and notes. Only applies to books you import AFTER changing this — already-imported books keep their original chunking. Set your pace before importing a book.",
   "coread.settings.pace.short": "Close reading",
   "coread.settings.pace.long": "Fast reading",
   "coread.settings.autoNote": "Let the character write notes on their own",
