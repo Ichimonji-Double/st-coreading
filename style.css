@@ -718,12 +718,72 @@ body.dark .coread-reader-body .coread-paragraph.has-note {
     gap: 8px;
 }
 
+.coread-ctx-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+}
+
 .coread-ctx-label {
     font-size: 10px;
     text-transform: uppercase;
     opacity: 0.5;
     letter-spacing: 0.5px;
-    margin-bottom: 2px;
+}
+
+.coread-ctx-edit {
+    background: transparent;
+    border: 1px solid transparent;
+    color: inherit;
+    opacity: 0.35;
+    cursor: pointer;
+    padding: 0 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    border-radius: 3px;
+    transition: opacity 120ms, background 120ms;
+}
+.coread-ctx-edit:hover:not(:disabled) {
+    opacity: 1;
+    background: var(--cr-hover);
+}
+.coread-ctx-edit:disabled {
+    cursor: default;
+}
+
+.coread-ctx-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 0;
+}
+.coread-ctx-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--cr-input-bg);
+    color: inherit;
+    border: 1px solid var(--cr-input-border);
+    border-radius: var(--cr-radius-sm, 4px);
+    padding: 6px 8px;
+    font: inherit;
+    font-size: 12px;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 80px;
+    max-height: 240px;
+}
+.coread-ctx-textarea:focus {
+    outline: none;
+    border-color: var(--cr-accent);
+}
+.coread-ctx-editor-hint {
+    font-size: 11px;
+    opacity: 0.55;
+}
+.coread-ctx-editor-actions {
+    display: flex;
+    gap: 6px;
 }
 
 .coread-ctx-text {

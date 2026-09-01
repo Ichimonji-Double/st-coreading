@@ -528,11 +528,17 @@ async function openBookInReader(bookId) {
             save: t('coread.action.save'),
             ask: t('coread.action.askChar'),
             cancel: t('coread.action.cancel'),
+            edit: t('coread.action.edit'),
             asking: t('coread.editor.asking'),
             confirmDelete: t('coread.confirm.deleteNote'),
             jumpHint: t('coread.jump.hint'),
             jumpTooFar: t('coread.jump.tooFar'),
             jumpInvalid: t('coread.jump.invalid'),
+            ctxRolling: t('coread.ctx.rolling'),
+            ctxChunkSummary: t('coread.ctx.chunkSummary'),
+            ctxEmpty: t('coread.ctx.empty'),
+            ctxNotYet: t('coread.ctx.notYet'),
+            ctxEditHint: t('coread.ctx.editHint'),
         }),
         onSaveUserNote: async ({ chunk, pIdx, text }) => {
             await saveUserNote({ book, chunk, pIdx, text, charId: getCharId() });
@@ -548,6 +554,7 @@ async function openBookInReader(bookId) {
             });
         },
         onNotesChanged: () => renderNotesPanel(bookId, getCharId()),
+        onContextEdited: () => updateChatInjection(),
         onChunkChange: ({ from, to, direction }) => {
             if (direction === 'forward' && from && !from.summary) {
                 runChunkSummary(book, from).catch(e => console.error('[coread] summary failed', e));

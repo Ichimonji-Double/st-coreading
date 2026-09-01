@@ -234,16 +234,108 @@ async function renderContext() {
     const session = await db.get('sessions', `${state.bookId}__${activeCharId}`);
     const rolling = session?.rollingSummary || '';
     const chunkSummary = chunk?.summary || '';
+    const L = callbacks.getLabels?.() || {};
+    const labelRolling = L.ctxRolling || 'Rolling summary';
+    const labelChunk = L.ctxChunkSummary || 'Current chunk summary';
+    const empty = L.ctxEmpty || '(empty)';
+    const notYet = L.ctxNotYet || '(not yet summarized)';
+    const editLabel = L.edit || 'Edit';
+
     body.innerHTML = `
-        <div class="coread-ctx-block">
-            <div class="coread-ctx-label">Rolling summary</div>
-            <div class="coread-ctx-text">${escapeHtml(rolling) || '<em>empty</em>'}</div>
+        <div class="coread-ctx-block" data-kind="rolling">
+            <div class="coread-ctx-head">
+                <div class="coread-ctx-label">${escapeHtml(labelRolling)}</div>
+                <button class="coread-ctx-edit" data-kind="rolling" title="${escapeHtml(editLabel)}">✎</button>
+            </div>
+            <div class="coread-ctx-text">${escapeHtml(rolling) || `<em>${escapeHtml(empty)}</em>`}</div>
         </div>
-        <div class="coread-ctx-block">
-            <div class="coread-ctx-label">Current chunk summary</div>
-            <div class="coread-ctx-text">${escapeHtml(chunkSummary) || '<em>not yet summarized</em>'}</div>
+        <div class="coread-ctx-block" data-kind="chunk">
+            <div class="coread-ctx-head">
+                <div class="coread-ctx-label">${escapeHtml(labelChunk)}</div>
+                <button class="coread-ctx-edit" data-kind="chunk" title="${escapeHtml(editLabel)}" ${chunk ? '' : 'disabled'}>✎</button>
+            </div>
+            <div class="coread-ctx-text">${escapeHtml(chunkSummary) || `<em>${escapeHtml(notYet)}</em>`}</div>
         </div>
     `;
+
+    body.querySelectorAll('.coread-ctx-edit').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const kind = btn.dataset.kind;
+            beginContextEdit(kind, kind === 'rolling' ? rolling : chunkSummary);
+        });
+    });
+}
+
+function beginContextEdit(kind, current) {
+    const block = document.querySelector(`#coread-drawer .coread-ctx-block[data-kind="${kind}"]`);
+    if (!block || block.querySelector('.coread-ctx-textarea')) return;
+    const L = callbacks.getLabels?.() || {};
+    const textEl = block.querySelector('.coread-ctx-text');
+    const editBtn = block.querySelector('.coread-ctx-edit');
+    if (editBtn) editBtn.disabled = true;
+
+    const editor = document.createElement('div');
+    editor.className = 'coread-ctx-editor';
+    editor.innerHTML = `
+        <textarea class="coread-ctx-textarea" rows="6"></textarea>
+        <div class="coread-ctx-editor-hint">${escapeHtml(L.ctxEditHint || '')}</div>
+        <div class="coread-ctx-editor-actions">
+            <button data-act="save" class="coread-btn coread-btn-primary">${escapeHtml(L.save || 'Save')}</button>
+            <button data-act="cancel" class="coread-btn">${escapeHtml(L.cancel || 'Cancel')}</button>
+        </div>
+    `;
+    editor.querySelector('textarea').value = current || '';
+    textEl.replaceWith(editor);
+    const ta = editor.querySelector('textarea');
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+
+    editor.addEventListener('click', (e) => e.stopPropagation());
+    editor.querySelector('[data-act="save"]').addEventListener('click', async () => {
+        const newText = ta.value.trim();
+        try {
+            await persistContextEdit(kind, newText);
+        } catch (err) {
+            console.error('[coread] context edit save failed', err);
+        }
+        renderContext();
+        callbacks.onContextEdited?.();
+    });
+    editor.querySelector('[data-act="cancel"]').addEventListener('click', () => {
+        renderContext();
+    });
+    ta.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); renderContext(); }
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            editor.querySelector('[data-act="save"]').click();
+        }
+    });
+}
+
+async function persistContextEdit(kind, newText) {
+    if (kind === 'rolling') {
+        const activeCharId = callbacks.getCharId?.() || 'default';
+        const sessionId = `${state.bookId}__${activeCharId}`;
+        const session = (await db.get('sessions', sessionId)) || {
+            id: sessionId, bookId: state.bookId, charId: activeCharId,
+            currentChunkId: state.chunks[state.currentChunkIdx]?.id,
+            rollingSummary: '', updatedAt: Date.now(),
+        };
+        session.rollingSummary = newText;
+        session.updatedAt = Date.now();
+        await db.put('sessions', session);
+        return;
+    }
+    if (kind === 'chunk') {
+        const chunk = state.chunks[state.currentChunkIdx];
+        if (!chunk) return;
+        chunk.summary = newText;
+        if (newText) chunk.status = 'read';
+        await db.put('chunks', chunk);
+        return;
+    }
 }
 
 function escapeHtml(s) {
